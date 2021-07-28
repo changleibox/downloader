@@ -2,8 +2,6 @@
  * Copyright (c) 2021 CHANGLEI. All rights reserved.
  */
 
-// dart2.9
-
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
