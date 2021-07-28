@@ -3,18 +3,16 @@
  */
 
 import 'dart:collection';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
-const _extinf = '#EXTINF';
+const _extInf = '#EXTINF';
 const _extXStreamInf = '#EXT-X-STREAM-INF';
 const _timeout = Duration(hours: 24);
 
@@ -33,10 +31,12 @@ final _logInterceptor = LogInterceptor(
   request: true,
   requestHeader: true,
   requestBody: true,
-  responseBody: true,
   responseHeader: true,
+  responseBody: true,
   error: true,
 );
+
+const _downloader = M3u8Downloader._();
 
 /// Created by changlei on 2021/7/27.
 ///
@@ -49,100 +49,61 @@ class M3u8Downloader {
     String url, {
     ProgressCallback? progress,
     CancelToken? cancelToken,
-  }) {
-    if (!_plainRequest.interceptors.contains(_logInterceptor)) {
-      _plainRequest.interceptors.add(_logInterceptor);
+  }) async {
+    final interceptors = _plainRequest.interceptors;
+    if (!interceptors.contains(_logInterceptor)) {
+      interceptors.add(_logInterceptor);
     }
-    return const M3u8Downloader._()._download(
-      url,
+    return _downloader._download(
+      url: url,
+      targetDirectory: await getTemporaryDirectory(),
       progress: progress,
       cancelToken: cancelToken,
     );
   }
 
   /// download
-  Future<String?> _download(
-    String url, {
+  Future<String?> _download({
+    required String url,
+    required Directory targetDirectory,
     ProgressCallback? progress,
     CancelToken? cancelToken,
   }) async {
-    var m3u8 = await M3u8.load(url);
+    var m3u8 = await M3u8.read(url);
     final streamInf = m3u8?.streamInf;
     if (streamInf?.isNotEmpty == true) {
-      m3u8 = await M3u8.load(streamInf!.first.uri);
+      m3u8 = await M3u8.read(streamInf!.first.uri);
     }
     if (m3u8 == null) {
       return null;
     }
 
-    final directory = Directory(path.join(
-      (await getTemporaryDirectory()).path,
-      md5.convert(utf8.encode(url)).toString(),
-    ));
-
-    // 下载ts文件列表
-    final tsDirectory = Directory(path.join(directory.path, 'ts'));
-    final playlist = [...?m3u8.playlist];
-    final results = <String>[];
-    for (var value in playlist) {
-      final uri = value.uri;
-      final savePath = path.join(tsDirectory.path, path.basename(uri));
-      await _plainRequest.download(uri, savePath);
-      results.add(savePath);
-    }
-
     // 合并下载后的ts文件
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final mp4File = File(path.join(
-      (await getApplicationDocumentsDirectory()).path,
-      '$timestamp.mp4',
-    ));
-    if (mp4File.existsSync()) {
-      mp4File.deleteSync();
+    final target = File(path.join(targetDirectory.path, '$timestamp.mp4'));
+    if (target.existsSync()) {
+      target.deleteSync();
     }
-    mp4File.createSync(recursive: true);
+    target.createSync(recursive: true);
+    final ioSink = target.openWrite();
 
-    // 下载key文件
     final key = m3u8.key;
-    final method = key?.method;
-    final keyUri = key?.uri;
-    var desIv = key?.iv;
-    Uint8List? desKey;
-    if (method != null && method != KeyMethod.none && keyUri != null) {
-      final keySavePath = path.join(directory.path, path.basename(keyUri));
-      await _plainRequest.download(keyUri, keySavePath);
-      desKey = File(keySavePath).readAsBytesSync();
-      if (desIv?.startsWith('0x') == true) {
-        desIv = int.tryParse(desIv!, radix: 16).toString();
+    final keyData = await key?.keyData;
+
+    // 下载ts文件列表
+    final playlist = [...?m3u8.playlist];
+    for (var value in playlist) {
+      final data = await _downloadToBytes(value.uri);
+      if (data == null) {
+        continue;
       }
-      if (desIv?.length != 16) {
-        desIv = List.generate(16, (index) => index % 10).join();
-      }
+      ioSink.add(_decrypt(data, keyData, key?.iv));
     }
 
-    final ioSink = mp4File.openWrite();
-    for (var result in results) {
-      final file = File(result);
-      final data = file.readAsBytesSync();
-      if (desKey == null) {
-        ioSink.add(data);
-      } else {
-        final encrypted = Encrypted(data);
-        final key = Key(desKey);
-        final iv = IV(Uint8List.fromList(desIv!.codeUnits));
-        final encrypter = Encrypter(AES(
-          key,
-          mode: AESMode.cbc,
-        ));
-        ioSink.add(encrypter.decryptBytes(encrypted, iv: iv));
-      }
-    }
     await ioSink.flush();
     await ioSink.close();
 
-    // 删除临时文件
-    directory.deleteSync(recursive: true);
-    return mp4File.path;
+    return target.path;
   }
 }
 
@@ -256,15 +217,13 @@ class M3u8 {
   final ExtStart? start;
 
   /// 加载M3U8格式文件
-  static Future<M3u8?> load(String url) async {
-    final filePath = path.join(
-      (await getTemporaryDirectory()).path,
-      path.basename(url),
-    );
-    await _plainRequest.download(url, filePath);
-    final file = File(filePath);
-    final lines = file.readAsLinesSync();
-    file.deleteSync(recursive: true);
+  static Future<M3u8?> read(String url) async {
+    final data = await _downloadToBytes(url);
+    if (data == null) {
+      return null;
+    }
+    final lines = String.fromCharCodes(data).split('\n');
+    lines.retainWhere((element) => element.isNotEmpty);
 
     final attributes = <String, String>{};
     final iterator = lines.iterator;
@@ -284,7 +243,7 @@ class M3u8 {
       final key = line.substring(0, splitIndex);
       final value = line.substring(splitIndex + 1);
       final buffer = StringBuffer(value);
-      if (line.startsWith(RegExp('$_extinf|$_extXStreamInf')) && iterator.moveNext()) {
+      if (line.startsWith(RegExp('$_extInf|$_extXStreamInf')) && iterator.moveNext()) {
         buffer.write('\n');
         var current = iterator.current;
         if (!current.startsWith(_httpHeaderRegExp)) {
@@ -331,7 +290,7 @@ class M3u8 {
       frameStreamInf: ExtFrameStreamInf.from(attributes['#EXT-X-I-FRAME-STREAM-INF']),
       sessionData: ExtSessionData.from(attributes['#EXT-X-SESSION-DATA']),
       sessionKey: ExtKey.from(attributes['#EXT-X-SESSION-KEY']),
-      playlist: Playlist.from(attributes[_extinf]),
+      playlist: Playlist.from(attributes[_extInf]),
       start: ExtStart.from(attributes['#EXT-X-START']),
     );
   }
@@ -591,6 +550,11 @@ class ExtKey {
       keyFormat: map['KEYFORMAT'],
       keyFormatVersions: map['KEYFORMATVERSIONS'],
     );
+  }
+
+  /// 获取key的内容
+  Future<Uint8List?> get keyData async {
+    return method == KeyMethod.none ? null : _downloadToBytes(uri);
   }
 
   /// 指定密钥路径。
@@ -1087,4 +1051,42 @@ Map<String, String?>? _convertAttributeMap(String? attributeValue) {
     return MapEntry(keyValues.first, value);
   });
   return Map.fromEntries(entries);
+}
+
+List<int> _decrypt(Uint8List data, Uint8List? keyData, String? ivStr) {
+  if (keyData == null) {
+    return data;
+  }
+  if (ivStr?.startsWith('0x') == true) {
+    ivStr = int.tryParse(ivStr!, radix: 16).toString();
+  }
+  IV iv;
+  if (ivStr?.length != 16) {
+    iv = IV.fromLength(16);
+  } else {
+    iv = IV(Uint8List.fromList(ivStr!.codeUnits));
+  }
+  return Encrypter(AES(
+    Key(keyData),
+    mode: AESMode.cbc,
+  )).decryptBytes(
+    Encrypted(data),
+    iv: iv,
+  );
+}
+
+Future<Uint8List?> _downloadToBytes(String uri) async {
+  final response = await _plainRequest.request<ResponseBody>(
+    uri,
+    options: Options(
+      responseType: ResponseType.stream,
+    ),
+  );
+  final responseBody = response.data;
+  if (responseBody == null) {
+    return null;
+  }
+  final data = <int>[];
+  await responseBody.stream.forEach(data.addAll);
+  return Uint8List.fromList(data);
 }
