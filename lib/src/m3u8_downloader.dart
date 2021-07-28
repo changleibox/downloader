@@ -87,17 +87,21 @@ class M3u8Downloader {
     target.createSync(recursive: true);
     final ioSink = target.openWrite();
 
-    final key = m3u8.key;
-    final keyData = await key?.keyData;
+    try {
+      final key = m3u8.key;
+      final keyData = await key?.keyData;
 
-    // 下载ts文件列表
-    final playlist = [...?m3u8.playlist];
-    for (var value in playlist) {
-      final data = await _downloadToBytes(value.uri);
-      if (data == null) {
-        continue;
+      // 下载ts文件列表
+      final playlist = [...?m3u8.playlist];
+      for (var value in playlist) {
+        final data = await _downloadToBytes(value.uri);
+        if (data == null) {
+          continue;
+        }
+        ioSink.add(_decrypt(data, keyData, key?.iv));
       }
-      ioSink.add(_decrypt(data, keyData, key?.iv));
+    } catch (e) {
+      target.deleteSync();
     }
 
     await ioSink.flush();
