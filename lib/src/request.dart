@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -27,7 +29,11 @@ final _logInterceptor = LogInterceptor(
 );
 
 /// 下载文件
-Future<Uint8List?> downloadToBytes(String uri, {CancelToken? cancelToken}) async {
+Future<Uint8List?> requestAsBytes(
+  String uri, {
+  ProgressCallback? onReceiveProgress,
+  CancelToken? cancelToken,
+}) async {
   final interceptors = _plainRequest.interceptors;
   if (!interceptors.contains(_logInterceptor)) {
     interceptors.add(_logInterceptor);
@@ -37,15 +43,32 @@ Future<Uint8List?> downloadToBytes(String uri, {CancelToken? cancelToken}) async
     options: Options(
       responseType: ResponseType.stream,
     ),
+    onReceiveProgress: onReceiveProgress,
     cancelToken: cancelToken,
   );
   final responseBody = response.data;
   if (responseBody == null) {
     return null;
   }
+  final total = _parseLength(response.headers);
+  var received = 0;
+  final completer = Completer<Uint8List>();
   final data = <int>[];
-  await responseBody.stream.forEach(data.addAll);
-  return Uint8List.fromList(data);
+  responseBody.stream.listen(
+    (event) {
+      data.addAll(event);
+      received += event.length;
+      onReceiveProgress?.call(received, total);
+    },
+    onDone: () {
+      completer.complete(Uint8List.fromList(data));
+    },
+    onError: (Object error, [StackTrace? stackTrace]) {
+      completer.completeError(error, stackTrace);
+    },
+    cancelOnError: true,
+  );
+  return completer.future;
 }
 
 /// 批量获取[uris]对应的文件大小总合
@@ -54,32 +77,59 @@ Future<int> requestLength(
   String lengthHeader = Headers.contentLengthHeader,
   CancelToken? cancelToken,
 }) async {
+  if (uris.isEmpty) {
+    return 0;
+  }
   final interceptors = _plainRequest.interceptors;
   if (!interceptors.contains(_logInterceptor)) {
     interceptors.add(_logInterceptor);
   }
-  if (uris.isEmpty) {
-    return -1;
+  Future<int> getLength(List<String> uri) async {
+    try {
+      final lengths = await Future.wait(uris.map((e) {
+        return _requestLength(e, cancelToken);
+      }));
+      return lengths.reduce((value, element) => value + element);
+    } catch (e) {
+      return 0;
+    }
   }
-  try {
-    final futures = uris.map((e) async {
-      final head = await _plainRequest.head<void>(e);
-      final headers = head.headers;
-      var compressed = false;
-      final contentEncoding = headers.value(Headers.contentEncodingHeader);
-      if (contentEncoding != null) {
-        compressed = ['gzip', 'deflate', 'compress'].contains(contentEncoding);
-      }
-      var total = 0;
-      if (lengthHeader == Headers.contentLengthHeader && compressed) {
-        total = -1;
-      } else {
-        total = int.parse(headers.value(lengthHeader) ?? '-1');
-      }
-      return total;
-    });
-    return (await Future.wait(futures)).reduce((value, element) => value + element);
-  } catch (e) {
-    return -1;
+
+  final lengths = await Future.wait(_collapseUris(uris).map(getLength));
+  return lengths.reduce((value, element) => value + element);
+}
+
+List<List<String>> _collapseUris(Iterable<String> uris, [int maxLength = 10]) {
+  final length = uris.length;
+  if (length <= 10) {
+    return [uris.toList()];
   }
+  final collapsedUris = <List<String>>[];
+  for (var i = 0; i < (length ~/ maxLength + (length % maxLength > 0 ? 1 : 0)); i++) {
+    collapsedUris.add(List.of(uris).sublist(i * maxLength, min(length, (i + 1) * maxLength)));
+  }
+  return collapsedUris;
+}
+
+Future<int> _requestLength(String uri, [CancelToken? cancelToken]) async {
+  final response = await _plainRequest.head<void>(
+    uri,
+    cancelToken: cancelToken,
+  );
+  return _parseLength(response.headers);
+}
+
+int _parseLength(Headers headers, [String lengthHeader = Headers.contentLengthHeader]) {
+  var compressed = false;
+  final contentEncoding = headers.value(Headers.contentEncodingHeader);
+  if (contentEncoding != null) {
+    compressed = ['gzip', 'deflate', 'compress'].contains(contentEncoding);
+  }
+  var total = 0;
+  if (lengthHeader == Headers.contentLengthHeader && compressed) {
+    total = 0;
+  } else {
+    total = int.parse(headers.value(lengthHeader) ?? '0');
+  }
+  return total;
 }

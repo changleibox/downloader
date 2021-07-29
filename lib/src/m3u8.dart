@@ -129,7 +129,7 @@ class M3u8 {
 
   /// 加载M3U8格式文件
   static Future<M3u8?> parse(String url) async {
-    final data = await downloadToBytes(url);
+    final data = await requestAsBytes(url);
     if (data == null) {
       return null;
     }
@@ -460,7 +460,7 @@ class ExtKey {
 
   /// 获取key的内容
   Future<Uint8List?> get keyData async {
-    return method == KeyMethod.none ? null : downloadToBytes(uri);
+    return method == KeyMethod.none ? null : requestAsBytes(uri);
   }
 
   /// 指定密钥路径。

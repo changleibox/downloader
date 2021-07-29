@@ -197,16 +197,18 @@ class M3u8Downloader {
       if (_cancelToken.isCancelled || _controller.isClosed) {
         break;
       }
-      final data = await downloadToBytes(
+      final data = await requestAsBytes(
         value.uri,
         cancelToken: _cancelToken,
+        onReceiveProgress: (count, _) {
+          received += count;
+          onReceiveProgress?.call(received, total);
+        },
       );
       if (data == null) {
         continue;
       }
       _onData(decrypt(data, keyData, key?.iv));
-      received += data.length;
-      onReceiveProgress?.call(received, total);
     }
   }
 }
