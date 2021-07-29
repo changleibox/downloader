@@ -156,10 +156,10 @@ class M3u8Downloader {
   }
 
   Future<void> _download(String url) async {
-    var m3u8 = await M3u8.read(url);
+    var m3u8 = await M3u8.parse(url);
     final streamInf = m3u8?.streamInf;
     if (streamInf?.isNotEmpty == true) {
-      m3u8 = await M3u8.read(streamInf!.first.uri);
+      m3u8 = await M3u8.parse(streamInf!.first.uri);
     }
     if (m3u8 == null) {
       return null;

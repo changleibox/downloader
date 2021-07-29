@@ -128,7 +128,7 @@ class M3u8 {
   final ExtStart? start;
 
   /// 加载M3U8格式文件
-  static Future<M3u8?> read(String url) async {
+  static Future<M3u8?> parse(String url) async {
     final data = await downloadToBytes(url);
     if (data == null) {
       return null;
@@ -283,17 +283,23 @@ class ExtStreamInf {
 
 /// playlist
 class MasterPlaylist extends ListBase<ExtStreamInf> {
+  MasterPlaylist._(List<ExtStreamInf>? list) {
+    if (list != null) {
+      _list.addAll(list);
+    }
+  }
+
   /// 按照[value]初始化
   static MasterPlaylist? from(String? value) {
     if (value == null) {
       return null;
     }
-    final playlist = MasterPlaylist();
+    final list = <ExtStreamInf>[];
     final playlistLines = value.split('|');
     for (var line in playlistLines) {
-      playlist.add(ExtStreamInf.from(line)!);
+      list.add(ExtStreamInf.from(line)!);
     }
-    return playlist;
+    return MasterPlaylist._(list);
   }
 
   final _list = <ExtStreamInf>[];
@@ -382,23 +388,29 @@ class ExtInf {
 
 /// playlist
 class Playlist extends ListBase<ExtInf> {
+  Playlist._(List<ExtInf>? list) {
+    if (list != null) {
+      _list.addAll(list);
+    }
+  }
+
   /// 按照[value]初始化
   static Playlist? from(String? value) {
     if (value == null) {
       return null;
     }
-    final playlist = Playlist();
+    final list = <ExtInf>[];
     final playlistLines = value.split('|');
     for (var line in playlistLines) {
       final split = line.split('\n');
       final info = split.first.split(',');
-      playlist.add(ExtInf(
+      list.add(ExtInf(
         uri: split.last,
         title: info.last,
         duration: _tryParseDuration(info.first),
       ));
     }
-    return playlist;
+    return Playlist._(list);
   }
 
   final _list = <ExtInf>[];
