@@ -27,7 +27,7 @@ final _logInterceptor = LogInterceptor(
 );
 
 /// 下载文件
-Future<Uint8List?> downloadToBytes(String uri) async {
+Future<Uint8List?> downloadToBytes(String uri, {CancelToken? cancelToken}) async {
   final interceptors = _plainRequest.interceptors;
   if (!interceptors.contains(_logInterceptor)) {
     interceptors.add(_logInterceptor);
@@ -37,6 +37,7 @@ Future<Uint8List?> downloadToBytes(String uri) async {
     options: Options(
       responseType: ResponseType.stream,
     ),
+    cancelToken: cancelToken,
   );
   final responseBody = response.data;
   if (responseBody == null) {

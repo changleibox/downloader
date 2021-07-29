@@ -134,13 +134,12 @@ class M3u8 {
       return null;
     }
     final lines = String.fromCharCodes(data).split('\n');
-    lines.retainWhere((element) => element.isNotEmpty);
 
     final attributes = <String, String>{};
     final iterator = lines.iterator;
     while (iterator.moveNext()) {
       final line = iterator.current;
-      if (line == '#EXTM3U' || (line.startsWith('#') && !line.startsWith('#EXT'))) {
+      if (line == '#EXTM3U' || (line.startsWith('#') && !line.startsWith('#EXT')) || line.isEmpty) {
         continue;
       }
       if (line == '#EXT-X-ENDLIST') {
@@ -156,23 +155,7 @@ class M3u8 {
       final buffer = StringBuffer(value);
       if (line.startsWith(RegExp('$_extInf|$_extXStreamInf')) && iterator.moveNext()) {
         buffer.write('\n');
-        var current = iterator.current;
-        if (!current.startsWith(_httpHeaderRegExp)) {
-          final indexUri = Uri.parse(url);
-          final pathSegments = List.of(indexUri.pathSegments);
-          pathSegments.remove(path.basename(url));
-          final currentPaths = path.split(current);
-          for (var currentPath in currentPaths) {
-            if (!pathSegments.contains(currentPath)) {
-              pathSegments.add(currentPath);
-            }
-          }
-          final replacedUri = indexUri.replace(
-            pathSegments: pathSegments,
-          );
-          current = replacedUri.toString();
-        }
-        buffer.write(current);
+        buffer.write(_mergeUrl(url, iterator.current));
       }
       final dynamic attributeValue = attributes[key];
       final appendedValues = <dynamic>[];
@@ -965,7 +948,7 @@ Map<String, String?>? _convertAttributeMap(String? attributeValue) {
 }
 
 /// aes解密
-List<int> decrypt(Uint8List data, Uint8List? keyData, String? ivStr) {
+Uint8List decrypt(Uint8List data, Uint8List? keyData, String? ivStr) {
   if (keyData == null) {
     return data;
   }
@@ -978,11 +961,33 @@ List<int> decrypt(Uint8List data, Uint8List? keyData, String? ivStr) {
   } else {
     iv = IV(Uint8List.fromList(ivStr!.codeUnits));
   }
-  return Encrypter(AES(
+  final decryptBytes = Encrypter(AES(
     Key(keyData),
     mode: AESMode.cbc,
   )).decryptBytes(
     Encrypted(data),
     iv: iv,
   );
+  return Uint8List.fromList(decryptBytes);
+}
+
+// 拼接url
+String _mergeUrl(String url, String currentPath) {
+  var current = currentPath;
+  if (!current.startsWith(_httpHeaderRegExp)) {
+    final indexUri = Uri.parse(url);
+    final pathSegments = List.of(indexUri.pathSegments);
+    pathSegments.remove(path.basename(url));
+    final currentPaths = path.split(current);
+    for (var currentPath in currentPaths) {
+      if (!pathSegments.contains(currentPath)) {
+        pathSegments.add(currentPath);
+      }
+    }
+    final replacedUri = indexUri.replace(
+      pathSegments: pathSegments,
+    );
+    current = replacedUri.toString();
+  }
+  return current;
 }

@@ -2,43 +2,143 @@
  * Copyright (c) 2021 CHANGLEI. All rights reserved.
  */
 
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:downloader/src/m3u8.dart';
 import 'package:downloader/src/request.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
-
-const _downloader = M3u8Downloader._();
 
 /// Created by changlei on 2021/7/27.
 ///
 /// .m3u8下载器
 class M3u8Downloader {
-  const M3u8Downloader._();
+  /// 构造函数
+  M3u8Downloader({
+    required this.url,
+    this.progress,
+  })  : _cancelToken = CancelToken(),
+        _controller = StreamController<Uint8List>.broadcast()..onCancel {
+    _controller.onCancel = () {
+      _cancelToken.cancel();
+    };
+  }
 
-  /// 下载
-  static Future<String?> download(
+  /// url
+  final String url;
+
+  /// 监听进度
+  final ProgressCallback? progress;
+
+  final CancelToken _cancelToken;
+
+  final StreamController<Uint8List> _controller;
+
+  /// 使用[Stream]下载
+  static Stream<Uint8List> asStream(
     String url, {
     ProgressCallback? progress,
-    CancelToken? cancelToken,
-  }) async {
-    return _downloader._download(
+  }) {
+    final downloader = M3u8Downloader(
       url: url,
-      targetDirectory: await getTemporaryDirectory(),
       progress: progress,
-      cancelToken: cancelToken,
     );
+    downloader.download(url);
+    return downloader.stream;
+  }
+
+  /// 使用[Uint8List]下载
+  static Future<Uint8List> asBytes(
+    String url, {
+    ProgressCallback? progress,
+  }) async {
+    final bytes = <int>[];
+    final stream = asStream(
+      url,
+      progress: progress,
+    );
+    await stream.forEach(bytes.addAll);
+    return Uint8List.fromList(bytes);
+  }
+
+  /// 使用[File]下载
+  static Future<void> asFile(
+    String url,
+    String path, {
+    ProgressCallback? progress,
+  }) {
+    final completer = Completer<void>();
+    final target = File(path);
+    if (target.existsSync()) {
+      target.deleteSync(recursive: true);
+    }
+    target.createSync(recursive: true);
+    final accessFile = target.openSync(
+      mode: FileMode.write,
+    );
+    asStream(
+      url,
+      progress: progress,
+    ).listen(
+      accessFile.writeFrom,
+      onDone: completer.complete,
+      onError: (Object error, [StackTrace? stackTrace]) {
+        target.deleteSync(recursive: true);
+        completer.completeError(error, stackTrace);
+      },
+      cancelOnError: true,
+    );
+    return completer.future;
+  }
+
+  /// stream
+  Stream<Uint8List> get stream => _controller.stream;
+
+  /// 取消下载
+  Future<void> cancel() async {
+    if (_controller.isClosed) {
+      return;
+    }
+    await _controller.close();
   }
 
   /// download
-  Future<String?> _download({
-    required String url,
-    required Directory targetDirectory,
-    ProgressCallback? progress,
-    CancelToken? cancelToken,
-  }) async {
+  Future<void> download(String url) async {
+    if (_controller.isClosed) {
+      throw StateError('该下载器已取消');
+    }
+    try {
+      await _download(url);
+    } catch (error, stackTrack) {
+      _onError(error, stackTrack);
+    } finally {
+      _onComplete();
+    }
+  }
+
+  void _onData(Uint8List value) {
+    if (_controller.isClosed) {
+      return;
+    }
+    _controller.add(value);
+  }
+
+  void _onError(Object error, [StackTrace? stackTrace]) {
+    if (_controller.isClosed || (error is DioError && error.type == DioErrorType.cancel)) {
+      return;
+    }
+    _controller.addError(error, stackTrace);
+  }
+
+  void _onComplete() {
+    if (_controller.isClosed) {
+      return;
+    }
+    _controller.close();
+  }
+
+  Future<void> _download(String url) async {
     var m3u8 = await M3u8.read(url);
     final streamInf = m3u8?.streamInf;
     if (streamInf?.isNotEmpty == true) {
@@ -48,35 +148,26 @@ class M3u8Downloader {
       return null;
     }
 
-    // 合并下载后的ts文件
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final target = File(path.join(targetDirectory.path, '$timestamp.mp4'));
-    if (target.existsSync()) {
-      target.deleteSync();
-    }
-    target.createSync(recursive: true);
-    final ioSink = target.openWrite();
+    final key = m3u8.key;
+    final keyData = await key?.keyData;
 
-    try {
-      final key = m3u8.key;
-      final keyData = await key?.keyData;
-
-      // 下载ts文件列表
-      final playlist = [...?m3u8.playlist];
-      for (var value in playlist) {
-        final data = await downloadToBytes(value.uri);
-        if (data == null) {
-          continue;
-        }
-        ioSink.add(decrypt(data, keyData, key?.iv));
+    // 下载ts文件列表
+    final playlist = [...?m3u8.playlist];
+    for (var value in playlist) {
+      if (_cancelToken.isCancelled) {
+        break;
       }
-      return target.path;
-    } catch (e) {
-      target.deleteSync();
-      rethrow;
-    } finally {
-      await ioSink.flush();
-      await ioSink.close();
+      final data = await downloadToBytes(
+        value.uri,
+        cancelToken: _cancelToken,
+      );
+      if (_controller.isClosed) {
+        break;
+      }
+      if (data == null) {
+        continue;
+      }
+      _onData(decrypt(data, keyData, key?.iv));
     }
   }
 }
