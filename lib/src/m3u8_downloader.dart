@@ -88,19 +88,35 @@ class M3u8Downloader {
       target.deleteSync(recursive: true);
     }
     target.createSync(recursive: true);
-    final accessFile = target.openSync(
-      mode: FileMode.write,
-    );
+    final ioSink = target.openWrite();
+    Future<void> onDone() async {
+      try {
+        await ioSink.flush();
+        await ioSink.close();
+        completer.complete();
+      } catch (error, stackTrace) {
+        target.deleteSync(recursive: true);
+        completer.completeError(error, stackTrace);
+      }
+    }
+
+    Future<void> onError(Object error, [StackTrace? stackTrace]) async {
+      try {
+        await ioSink.flush();
+        await ioSink.close();
+      } finally {
+        target.deleteSync(recursive: true);
+        completer.completeError(error, stackTrace);
+      }
+    }
+
     final subscription = asStream(
       url,
       onReceiveProgress: onReceiveProgress,
     ).listen(
-      accessFile.writeFrom,
-      onDone: completer.complete,
-      onError: (Object error, [StackTrace? stackTrace]) {
-        target.deleteSync(recursive: true);
-        completer.completeError(error, stackTrace);
-      },
+      ioSink.add,
+      onDone: onDone,
+      onError: onError,
       cancelOnError: true,
     );
     cancelToken?.whenCancel.then((value) {
