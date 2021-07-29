@@ -43,7 +43,6 @@ Future<Uint8List?> requestAsBytes(
     options: Options(
       responseType: ResponseType.stream,
     ),
-    onReceiveProgress: onReceiveProgress,
     cancelToken: cancelToken,
   );
   final responseBody = response.data;
