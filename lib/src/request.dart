@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 
 /// Created by changlei on 2021/7/28.
 ///
@@ -32,6 +33,7 @@ final _logInterceptor = LogInterceptor(
 Future<Uint8List?> requestAsBytes(
   String uri, {
   ProgressCallback? onReceiveProgress,
+  ValueChanged<Uint8List>? onReceive,
   CancelToken? cancelToken,
 }) async {
   final interceptors = _plainRequest.interceptors;
@@ -58,6 +60,7 @@ Future<Uint8List?> requestAsBytes(
       data.addAll(event);
       received += event.length;
       onReceiveProgress?.call(received, total);
+      onReceive?.call(event);
     },
     onDone: () {
       completer.complete(Uint8List.fromList(data));

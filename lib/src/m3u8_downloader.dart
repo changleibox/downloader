@@ -200,8 +200,8 @@ class M3u8Downloader {
       final data = await requestAsBytes(
         value.uri,
         cancelToken: _cancelToken,
-        onReceiveProgress: (count, _) {
-          received += count;
+        onReceive: (value) {
+          received += value.length;
           onReceiveProgress?.call(received, total);
         },
       );
