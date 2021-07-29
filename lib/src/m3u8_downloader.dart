@@ -51,21 +51,35 @@ class M3u8Downloader {
   /// 使用[Uint8List]下载
   static Future<Uint8List> asBytes(
     String url, {
+    CancelToken? cancelToken,
     ProgressCallback? progress,
-  }) async {
+  }) {
     final bytes = <int>[];
-    final stream = asStream(
+    final completer = Completer<Uint8List>();
+    final subscription = asStream(
       url,
       progress: progress,
+    ).listen(
+      bytes.addAll,
+      onDone: () {
+        completer.complete(Uint8List.fromList(bytes));
+      },
+      onError: (Object error, [StackTrace? stackTrace]) {
+        completer.completeError(error, stackTrace);
+      },
+      cancelOnError: true,
     );
-    await stream.forEach(bytes.addAll);
-    return Uint8List.fromList(bytes);
+    cancelToken?.whenCancel.then((value) {
+      subscription.cancel();
+    });
+    return completer.future;
   }
 
   /// 使用[File]下载
   static Future<void> asFile(
     String url,
     String path, {
+    CancelToken? cancelToken,
     ProgressCallback? progress,
   }) {
     final completer = Completer<void>();
@@ -77,7 +91,7 @@ class M3u8Downloader {
     final accessFile = target.openSync(
       mode: FileMode.write,
     );
-    asStream(
+    final subscription = asStream(
       url,
       progress: progress,
     ).listen(
@@ -89,6 +103,9 @@ class M3u8Downloader {
       },
       cancelOnError: true,
     );
+    cancelToken?.whenCancel.then((value) {
+      subscription.cancel();
+    });
     return completer.future;
   }
 
