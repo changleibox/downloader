@@ -137,6 +137,7 @@ abstract class Downloader {
   Stream<Uint8List> get stream => _controller.stream;
 
   /// cancelToken
+  @protected
   CancelToken get cancelToken => _cancelToken;
 
   /// 是否已取消
