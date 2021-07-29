@@ -47,3 +47,39 @@ Future<Uint8List?> downloadToBytes(String uri, {CancelToken? cancelToken}) async
   await responseBody.stream.forEach(data.addAll);
   return Uint8List.fromList(data);
 }
+
+/// 批量获取[uris]对应的文件大小总合
+Future<int> requestLength(
+  Iterable<String> uris, {
+  String lengthHeader = Headers.contentLengthHeader,
+  CancelToken? cancelToken,
+}) async {
+  final interceptors = _plainRequest.interceptors;
+  if (!interceptors.contains(_logInterceptor)) {
+    interceptors.add(_logInterceptor);
+  }
+  if (uris.isEmpty) {
+    return -1;
+  }
+  try {
+    final futures = uris.map((e) async {
+      final head = await _plainRequest.head<void>(e);
+      final headers = head.headers;
+      var compressed = false;
+      final contentEncoding = headers.value(Headers.contentEncodingHeader);
+      if (contentEncoding != null) {
+        compressed = ['gzip', 'deflate', 'compress'].contains(contentEncoding);
+      }
+      var total = 0;
+      if (lengthHeader == Headers.contentLengthHeader && compressed) {
+        total = -1;
+      } else {
+        total = int.parse(headers.value(lengthHeader) ?? '-1');
+      }
+      return total;
+    });
+    return (await Future.wait(futures)).reduce((value, element) => value + element);
+  } catch (e) {
+    return -1;
+  }
+}

@@ -186,21 +186,27 @@ class M3u8Downloader {
 
     // 下载ts文件列表
     final playlist = [...?m3u8.playlist];
+
+    final total = await requestLength(
+      playlist.map((e) => e.uri),
+      cancelToken: _cancelToken,
+    );
+    var received = 0;
+
     for (var value in playlist) {
-      if (_cancelToken.isCancelled) {
+      if (_cancelToken.isCancelled || _controller.isClosed) {
         break;
       }
       final data = await downloadToBytes(
         value.uri,
         cancelToken: _cancelToken,
       );
-      if (_controller.isClosed) {
-        break;
-      }
       if (data == null) {
         continue;
       }
       _onData(decrypt(data, keyData, key?.iv));
+      received += data.length;
+      onReceiveProgress?.call(received, total);
     }
   }
 }
