@@ -86,7 +86,7 @@ Future<int> requestLength(
   if (!interceptors.contains(_logInterceptor)) {
     interceptors.add(_logInterceptor);
   }
-  Future<int> getLength(List<String> uri) async {
+  Future<int> getLength(List<String> uris) async {
     try {
       final lengths = await Future.wait(uris.map((e) {
         return _requestLength(e, cancelToken);
@@ -97,13 +97,16 @@ Future<int> requestLength(
     }
   }
 
-  final lengths = await Future.wait(_collapseUris(uris).map(getLength));
-  return lengths.reduce((value, element) => value + element);
+  var length = 0;
+  for (var uris in _collapseUris(uris)) {
+    length += await getLength(uris);
+  }
+  return length;
 }
 
 List<List<String>> _collapseUris(Iterable<String> uris, [int maxLength = 10]) {
   final length = uris.length;
-  if (length <= 10) {
+  if (length <= maxLength) {
     return [uris.toList()];
   }
   final collapsedUris = <List<String>>[];
