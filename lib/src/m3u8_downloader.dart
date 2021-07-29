@@ -17,7 +17,7 @@ class M3u8Downloader {
   /// 构造函数
   M3u8Downloader({
     required this.url,
-    this.progress,
+    this.onReceiveProgress,
   })  : _cancelToken = CancelToken(),
         _controller = StreamController<Uint8List>.broadcast()..onCancel {
     _controller.onCancel = () {
@@ -29,7 +29,7 @@ class M3u8Downloader {
   final String url;
 
   /// 监听进度
-  final ProgressCallback? progress;
+  final ProgressCallback? onReceiveProgress;
 
   final CancelToken _cancelToken;
 
@@ -38,11 +38,11 @@ class M3u8Downloader {
   /// 使用[Stream]下载
   static Stream<Uint8List> asStream(
     String url, {
-    ProgressCallback? progress,
+    ProgressCallback? onReceiveProgress,
   }) {
     final downloader = M3u8Downloader(
       url: url,
-      progress: progress,
+      onReceiveProgress: onReceiveProgress,
     );
     downloader.download(url);
     return downloader.stream;
@@ -52,13 +52,13 @@ class M3u8Downloader {
   static Future<Uint8List> asBytes(
     String url, {
     CancelToken? cancelToken,
-    ProgressCallback? progress,
+    ProgressCallback? onReceiveProgress,
   }) {
     final bytes = <int>[];
     final completer = Completer<Uint8List>();
     final subscription = asStream(
       url,
-      progress: progress,
+      onReceiveProgress: onReceiveProgress,
     ).listen(
       bytes.addAll,
       onDone: () {
@@ -80,7 +80,7 @@ class M3u8Downloader {
     String url,
     String path, {
     CancelToken? cancelToken,
-    ProgressCallback? progress,
+    ProgressCallback? onReceiveProgress,
   }) {
     final completer = Completer<void>();
     final target = File(path);
@@ -93,7 +93,7 @@ class M3u8Downloader {
     );
     final subscription = asStream(
       url,
-      progress: progress,
+      onReceiveProgress: onReceiveProgress,
     ).listen(
       accessFile.writeFrom,
       onDone: completer.complete,
