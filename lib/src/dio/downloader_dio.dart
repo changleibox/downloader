@@ -33,15 +33,13 @@ mixin DownloaderDioMixin on DioMixin {
   final _ongoingQueue = ListQueue<Function>(_capacity);
 
   @override
-  Future<Response<T>> fetch<T>(RequestOptions requestOptions) async {
+  Future<Response<T>> fetch<T>(RequestOptions requestOptions) {
     final completer = Completer<Response<T>>();
     void next() {
       _ongoingQueue.removeFirst();
       if (_waitingQueue.isNotEmpty) {
-        final execute = _waitingQueue.removeFirst();
-        _ongoingQueue.add(execute..call());
+        _ongoingQueue.add(_waitingQueue.removeFirst()..call());
       }
-      print(_ongoingQueue.length);
     }
 
     void execute() {
