@@ -17,6 +17,8 @@ typedef DownloaderBuilder = Downloader Function(
   ProgressCallback? onReceiveProgress,
 );
 
+const _allMatchRegExp = r'.*?';
+
 /// Created by changlei on 2021/7/29.
 ///
 /// 下载器
@@ -37,13 +39,13 @@ abstract class Downloader {
     ProgressCallback? onReceiveProgress,
   }) {
     final pointIndex = url.lastIndexOf('.');
-    var extension = '';
+    var extension = _allMatchRegExp;
     if (pointIndex >= 0 || pointIndex < url.length) {
       extension = url.substring(pointIndex);
     }
     final keys = _downloaderBuilders.keys;
     for (var key in keys) {
-      final regExp = RegExp(key, caseSensitive: false);
+      final regExp = RegExp('\.$key\$', caseSensitive: false);
       if (regExp.hasMatch(extension)) {
         return _downloaderBuilders[key]!(url, onReceiveProgress);
       }
@@ -151,9 +153,9 @@ abstract class Downloader {
     final sortedExtensions = List.of(extensions)..sort();
     var key = sortedExtensions.join('|');
     if (sortedExtensions.isEmpty) {
-      key = '.*?';
+      key = _allMatchRegExp;
     }
-    _downloaderBuilders['\.$key\$'] = builder;
+    _downloaderBuilders[key] = builder;
   }
 
   static final _downloaderBuilders = <String, DownloaderBuilder>{
