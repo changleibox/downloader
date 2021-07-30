@@ -3,14 +3,12 @@
  */
 
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:downloader/src/dio/downloader_dio.dart';
 import 'package:flutter/cupertino.dart';
 
-const _initialCapacity = 10;
 const _timeout = Duration(hours: 24);
 
 /// Created by changlei on 2021/7/28.
@@ -79,37 +77,14 @@ Future<int> requestLength(
   if (uris.isEmpty) {
     return 0;
   }
-  Future<int> getLength(Iterable<String> uris) async {
-    try {
-      final lengths = await Future.wait(uris.map((e) {
-        return _requestLength(e, cancelToken);
-      }));
-      return lengths.reduce((value, element) => value + element);
-    } catch (e) {
-      return 0;
-    }
+  try {
+    final lengths = await Future.wait(uris.map((e) {
+      return _requestLength(e, cancelToken);
+    }));
+    return lengths.reduce((value, element) => value + element);
+  } catch (e) {
+    return 0;
   }
-
-  // var length = 0;
-  // for (var uris in _collapseUris(uris)) {
-  //   length += await getLength(uris);
-  // }
-  return getLength(uris);
-}
-
-List<List<String>> _collapseUris(
-  final Iterable<String> uris, [
-  final int maxLength = _initialCapacity,
-]) {
-  final length = uris.length;
-  if (length <= maxLength) {
-    return [uris.toList()];
-  }
-  final collapsedUris = <List<String>>[];
-  for (var i = 0; i < (length ~/ maxLength + (length % maxLength > 0 ? 1 : 0)); i++) {
-    collapsedUris.add(List.of(uris).sublist(i * maxLength, min(length, (i + 1) * maxLength)));
-  }
-  return collapsedUris;
 }
 
 Future<int> _requestLength(

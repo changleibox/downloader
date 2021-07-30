@@ -8,8 +8,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
-import 'package:downloader/src/request.dart' as request;
-import 'package:downloader/src/universal_downloader.dart';
+import 'package:downloader/src/dio/request.dart' as request;
+import 'package:downloader/src/universal/universal_downloader.dart';
 import 'package:flutter/cupertino.dart';
 
 /// 构建Downloader

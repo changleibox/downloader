@@ -6,8 +6,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
+import 'package:downloader/src/dio/request.dart';
 import 'package:downloader/src/downloader.dart';
-import 'package:downloader/src/request.dart';
 import 'package:flutter/foundation.dart';
 
 /// Created by changlei on 2021/7/29.

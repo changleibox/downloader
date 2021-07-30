@@ -1,4 +1,4 @@
-import 'package:downloader/src/m3u8.dart';
+import 'package:downloader/src/m3u8/m3u8.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

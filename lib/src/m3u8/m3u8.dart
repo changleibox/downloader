@@ -6,7 +6,7 @@ import 'dart:collection';
 import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:downloader/src/request.dart';
+import 'package:downloader/src/dio/request.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:path/path.dart' as path;
 
