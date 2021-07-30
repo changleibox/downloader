@@ -7,6 +7,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:downloader/src/dio/downloader_dio.dart';
 import 'package:flutter/cupertino.dart';
 
 const _initialCapacity = 10;
@@ -15,7 +16,7 @@ const _timeout = Duration(hours: 24);
 /// Created by changlei on 2021/7/28.
 ///
 /// 网络请求
-final _plainRequest = Dio(
+final _plainRequest = DownloaderDio(
   BaseOptions(
     connectTimeout: _timeout.inMilliseconds,
     sendTimeout: _timeout.inMilliseconds,
@@ -78,7 +79,7 @@ Future<int> requestLength(
   if (uris.isEmpty) {
     return 0;
   }
-  Future<int> getLength(List<String> uris) async {
+  Future<int> getLength(Iterable<String> uris) async {
     try {
       final lengths = await Future.wait(uris.map((e) {
         return _requestLength(e, cancelToken);
@@ -89,11 +90,11 @@ Future<int> requestLength(
     }
   }
 
-  var length = 0;
-  for (var uris in _collapseUris(uris)) {
-    length += await getLength(uris);
-  }
-  return length;
+  // var length = 0;
+  // for (var uris in _collapseUris(uris)) {
+  //   length += await getLength(uris);
+  // }
+  return getLength(uris);
 }
 
 List<List<String>> _collapseUris(

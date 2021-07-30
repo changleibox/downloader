@@ -42,24 +42,24 @@ class M3u8Downloader extends Downloader {
       playlist.map((e) => e.uri),
       cancelToken: cancelToken,
     );
-    var received = 0;
+    // var received = 0;
 
-    for (var value in playlist) {
-      if (isCancelled) {
-        break;
-      }
-      final data = await requestAsBytes(
-        value.uri,
-        cancelToken: cancelToken,
-        onReceive: (value) {
-          received += value.length;
-          onReceiveProgress?.call(received, total);
-        },
-      );
-      if (data == null) {
-        continue;
-      }
-      onData(decrypt(data, keyData, key?.iv));
-    }
+    // for (var value in playlist) {
+    //   if (isCancelled) {
+    //     break;
+    //   }
+    //   final data = await requestAsBytes(
+    //     value.uri,
+    //     cancelToken: cancelToken,
+    //     onReceive: (value) {
+    //       received += value.length;
+    //       onReceiveProgress?.call(received, total);
+    //     },
+    //   );
+    //   if (data == null) {
+    //     continue;
+    //   }
+    //   onData(decrypt(data, keyData, key?.iv));
+    // }
   }
 }
