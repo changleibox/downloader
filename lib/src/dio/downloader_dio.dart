@@ -21,7 +21,7 @@ class DownloaderDio with DioMixin implements Dio {
   factory DownloaderDio([BaseOptions? options]) => createDio(options);
 }
 
-const _capacity = 2;
+const _capacity = 10;
 
 /// 扩展dio
 /// 为了防止一次性请求太多，我们限制最多只能进行[_capacity]个请求
