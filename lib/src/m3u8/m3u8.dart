@@ -154,7 +154,7 @@ class M3u8 {
       final value = line.substring(splitIndex + 1);
       final buffer = StringBuffer(value);
       if (line.startsWith(RegExp('$_extInf|$_extXStreamInf')) && iterator.moveNext()) {
-        buffer.write('\n');
+        buffer.write('|');
         buffer.write(_mergeUrl(url, iterator.current));
       }
       final dynamic attributeValue = attributes[key];
@@ -163,7 +163,7 @@ class M3u8 {
         appendedValues.add(attributeValue);
       }
       appendedValues.add(buffer);
-      attributes[key] = appendedValues.join('|');
+      attributes[key] = appendedValues.join('\n');
     }
 
     return M3u8(
@@ -212,11 +212,8 @@ class ExtStreamInf {
     if (value == null) {
       return null;
     }
-    final split = value.split('\n');
-    final map = _convertAttributeMap(split.first);
-    if (map == null) {
-      return null;
-    }
+    final split = value.split('|');
+    final map = _convertAttributeMap(split.first)!;
     return ExtStreamInf(
       uri: split.last,
       bandWidth: _tryParseInt(map['BANDWIDTH'])!,
@@ -298,7 +295,7 @@ class MasterPlaylist extends ListBase<ExtStreamInf> {
       return null;
     }
     final list = <ExtStreamInf>[];
-    final playlistLines = value.split('|');
+    final playlistLines = value.split('\n');
     for (var line in playlistLines) {
       final streamInf = ExtStreamInf.from(line);
       if (streamInf == null) {
@@ -407,9 +404,9 @@ class Playlist extends ListBase<ExtInf> {
       return null;
     }
     final list = <ExtInf>[];
-    final playlistLines = value.split('|');
+    final playlistLines = value.split('\n');
     for (var line in playlistLines) {
-      final split = line.split('\n');
+      final split = line.split('|');
       final info = split.first.split(',');
       list.add(ExtInf(
         uri: split.last,
@@ -954,7 +951,7 @@ Map<String, String?>? _convertAttributeMap(String? attributeValue) {
   if (attributeValue?.isNotEmpty != true) {
     return null;
   }
-  final split = attributeValue!.split(',');
+  final split = attributeValue!.split(RegExp(',( *)'));
   final entries = split.map((e) {
     final keyValues = e.split('=');
     var value = keyValues.last;

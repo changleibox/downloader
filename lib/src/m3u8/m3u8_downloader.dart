@@ -38,11 +38,14 @@ class M3u8Downloader extends Downloader {
     // 下载ts文件列表
     final playlist = [...?m3u8.playlist];
 
-    final total = await requestLength(
-      playlist.map((e) => e.uri),
-      cancelToken: cancelToken,
-    );
+    var total = 0;
     var received = 0;
+    if (onReceiveProgress != null) {
+      total = await requestLength(
+        playlist.map((e) => e.uri),
+        cancelToken: cancelToken,
+      );
+    }
 
     for (var value in playlist) {
       if (isCancelled) {
