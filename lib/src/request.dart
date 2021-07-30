@@ -9,13 +9,12 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 
-const int _initialCapacity = 10;
+const _initialCapacity = 10;
+const _timeout = Duration(hours: 24);
 
 /// Created by changlei on 2021/7/28.
 ///
 /// 网络请求
-const _timeout = Duration(hours: 24);
-
 final _plainRequest = Dio(
   BaseOptions(
     connectTimeout: _timeout.inMilliseconds,
