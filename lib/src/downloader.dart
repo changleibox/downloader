@@ -208,10 +208,12 @@ abstract class Downloader {
 
   /// 取消下载
   Future<void> cancel() async {
-    if (_controller.isClosed) {
-      return;
+    if (!_cancelToken.isCancelled) {
+      _cancelToken.cancel();
     }
-    await _controller.close();
+    if (!_controller.isClosed) {
+      await _controller.close();
+    }
   }
 
   /// download

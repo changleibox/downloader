@@ -77,14 +77,10 @@ Future<int> requestLength(
   if (uris.isEmpty) {
     return 0;
   }
-  try {
-    final lengths = await Future.wait(uris.map((e) {
-      return _requestLength(e, cancelToken);
-    }));
-    return lengths.reduce((value, element) => value + element);
-  } catch (e) {
-    return 0;
-  }
+  final lengths = await Future.wait(uris.map((e) {
+    return _requestLength(e, cancelToken);
+  }));
+  return lengths.reduce((value, element) => value + element);
 }
 
 Future<int> _requestLength(
