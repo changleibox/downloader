@@ -21,15 +21,21 @@ abstract class Downloader {
     _controller.onCancel = () => _cancelToken.cancel();
   }
 
-  /// 构造函数
-  factory Downloader._({
+  /// 构造函数，按照文件类型选择合适的下载器
+  factory Downloader.extension({
     required String url,
     ProgressCallback? onReceiveProgress,
   }) {
     if (url.endsWith('.m3u8')) {
-      return M3u8Downloader(url: url, onReceiveProgress: onReceiveProgress);
+      return M3u8Downloader(
+        url: url,
+        onReceiveProgress: onReceiveProgress,
+      );
     } else {
-      return UniversalDownloader(url: url, onReceiveProgress: onReceiveProgress);
+      return UniversalDownloader(
+        url: url,
+        onReceiveProgress: onReceiveProgress,
+      );
     }
   }
 
@@ -38,7 +44,7 @@ abstract class Downloader {
     String url, {
     ProgressCallback? onReceiveProgress,
   }) {
-    final downloader = Downloader._(
+    final downloader = Downloader.extension(
       url: url,
       onReceiveProgress: onReceiveProgress,
     );
