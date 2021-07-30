@@ -213,19 +213,22 @@ class ExtStreamInf {
       return null;
     }
     final split = value.split('\n');
-    final attributeMap = _convertAttributeMap(split.first);
+    final map = _convertAttributeMap(split.first);
+    if (map == null) {
+      return null;
+    }
     return ExtStreamInf(
       uri: split.last,
-      bandWidth: _tryParseInt(attributeMap!['BANDWIDTH'])!,
-      averageBandWidth: _tryParseInt(attributeMap['AVERAGE-BANDWIDTH']),
-      codecs: attributeMap['CODECS']?.split(','),
-      resolution: _tryParseSize(attributeMap['RESOLUTION']),
-      frameRate: _tryParseDouble(attributeMap['FRAME-RATE']),
-      hdcpLevel: _convertHdcpLevel(attributeMap['HDCP-LEVEL']),
-      audio: attributeMap['AUDIO'],
-      video: attributeMap['VIDEO'],
-      subtitles: attributeMap['SUBTITLES'],
-      closedCaptions: attributeMap['CLOSED-CAPTIONS'],
+      bandWidth: _tryParseInt(map['BANDWIDTH'])!,
+      averageBandWidth: _tryParseInt(map['AVERAGE-BANDWIDTH']),
+      codecs: map['CODECS']?.split(','),
+      resolution: _tryParseSize(map['RESOLUTION']),
+      frameRate: _tryParseDouble(map['FRAME-RATE']),
+      hdcpLevel: _convertHdcpLevel(map['HDCP-LEVEL']),
+      audio: map['AUDIO'],
+      video: map['VIDEO'],
+      subtitles: map['SUBTITLES'],
+      closedCaptions: map['CLOSED-CAPTIONS'],
     );
   }
 
@@ -297,7 +300,11 @@ class MasterPlaylist extends ListBase<ExtStreamInf> {
     final list = <ExtStreamInf>[];
     final playlistLines = value.split('|');
     for (var line in playlistLines) {
-      list.add(ExtStreamInf.from(line)!);
+      final streamInf = ExtStreamInf.from(line);
+      if (streamInf == null) {
+        continue;
+      }
+      list.add(streamInf);
     }
     return MasterPlaylist._(list);
   }
@@ -944,10 +951,10 @@ Duration? _tryParseDuration(dynamic value, [Duration? defaultValue]) {
 }
 
 Map<String, String?>? _convertAttributeMap(String? attributeValue) {
-  if (attributeValue == null) {
+  if (attributeValue?.isNotEmpty != true) {
     return null;
   }
-  final split = attributeValue.split(',');
+  final split = attributeValue!.split(',');
   final entries = split.map((e) {
     final keyValues = e.split('=');
     var value = keyValues.last;
