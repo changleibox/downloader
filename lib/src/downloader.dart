@@ -197,7 +197,12 @@ abstract class Downloader {
   final StreamController<Uint8List> _controller;
 
   /// stream
-  Stream<Uint8List> get stream => _controller.stream;
+  Stream<Uint8List> get stream {
+    if (isCancelled) {
+      throw StateError('下载器已取消');
+    }
+    return _controller.stream;
+  }
 
   /// cancelToken
   @protected
@@ -218,8 +223,8 @@ abstract class Downloader {
 
   /// download
   Future<void> download(String url) async {
-    if (_controller.isClosed) {
-      throw StateError('该下载器已取消');
+    if (isCancelled) {
+      throw StateError('下载器已取消');
     }
     try {
       await onDownload(url, _onData);
@@ -249,9 +254,6 @@ abstract class Downloader {
   }
 
   void _onComplete() {
-    if (_controller.isClosed) {
-      return;
-    }
-    _controller.close();
+    cancel();
   }
 }
