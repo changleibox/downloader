@@ -25,13 +25,8 @@ final _plainRequest = Dio(
   ),
 );
 
-/// 设置日志打印管理器
-void setLogInterceptor(LogInterceptor interceptor) {
-  final interceptors = _plainRequest.interceptors;
-  if (!interceptors.contains(interceptor)) {
-    interceptors.add(interceptor);
-  }
-}
+/// 可以给下载管理器设置过滤器
+Interceptors get interceptors => _plainRequest.interceptors;
 
 /// 下载文件
 Future<Uint8List?> requestAsBytes(

@@ -147,10 +147,8 @@ abstract class Downloader {
     return completer.future;
   }
 
-  /// 设置日志打印管理器
-  static void setLogInterceptor(LogInterceptor interceptor) {
-    request.setLogInterceptor(interceptor);
-  }
+  /// 可以给下载管理器设置过滤器
+  static Interceptors get interceptors => request.interceptors;
 
   /// 加载下载管理器，按照后缀名
   /// 注意，如果传入的[extensions]已经存在，则会替换原来的[downloader]
