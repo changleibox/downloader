@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
+import 'package:downloader/src/request.dart' as request;
 import 'package:downloader/src/universal_downloader.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -144,6 +145,11 @@ abstract class Downloader {
       subscription.cancel();
     });
     return completer.future;
+  }
+
+  /// 设置日志打印管理器
+  static void setLogInterceptor(LogInterceptor interceptor) {
+    request.setLogInterceptor(interceptor);
   }
 
   /// 加载下载管理器，按照后缀名

@@ -24,14 +24,14 @@ final _plainRequest = Dio(
     receiveDataWhenStatusError: true,
   ),
 );
-final _logInterceptor = LogInterceptor(
-  request: true,
-  requestHeader: true,
-  requestBody: true,
-  responseHeader: true,
-  responseBody: true,
-  error: true,
-);
+
+/// 设置日志打印管理器
+void setLogInterceptor(LogInterceptor interceptor) {
+  final interceptors = _plainRequest.interceptors;
+  if (!interceptors.contains(interceptor)) {
+    interceptors.add(interceptor);
+  }
+}
 
 /// 下载文件
 Future<Uint8List?> requestAsBytes(
@@ -40,10 +40,6 @@ Future<Uint8List?> requestAsBytes(
   ValueChanged<Uint8List>? onReceive,
   CancelToken? cancelToken,
 }) async {
-  final interceptors = _plainRequest.interceptors;
-  if (!interceptors.contains(_logInterceptor)) {
-    interceptors.add(_logInterceptor);
-  }
   final response = await _plainRequest.request<ResponseBody>(
     uri,
     options: Options(
@@ -85,10 +81,6 @@ Future<int> requestLength(
 }) async {
   if (uris.isEmpty) {
     return 0;
-  }
-  final interceptors = _plainRequest.interceptors;
-  if (!interceptors.contains(_logInterceptor)) {
-    interceptors.add(_logInterceptor);
   }
   Future<int> getLength(List<String> uris) async {
     try {
