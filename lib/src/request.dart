@@ -9,6 +9,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 
+const int _initialCapacity = 10;
+
 /// Created by changlei on 2021/7/28.
 ///
 /// 网络请求
@@ -31,9 +33,9 @@ Interceptors get interceptors => _plainRequest.interceptors;
 /// 下载文件
 Future<Uint8List?> requestAsBytes(
   String uri, {
-  ProgressCallback? onReceiveProgress,
-  ValueChanged<Uint8List>? onReceive,
-  CancelToken? cancelToken,
+  final ProgressCallback? onReceiveProgress,
+  final ValueChanged<Uint8List>? onReceive,
+  final CancelToken? cancelToken,
 }) async {
   final response = await _plainRequest.request<ResponseBody>(
     uri,
@@ -71,8 +73,8 @@ Future<Uint8List?> requestAsBytes(
 /// 批量获取[uris]对应的文件大小总合
 Future<int> requestLength(
   Iterable<String> uris, {
-  String lengthHeader = Headers.contentLengthHeader,
-  CancelToken? cancelToken,
+  final String lengthHeader = Headers.contentLengthHeader,
+  final CancelToken? cancelToken,
 }) async {
   if (uris.isEmpty) {
     return 0;
@@ -95,7 +97,10 @@ Future<int> requestLength(
   return length;
 }
 
-List<List<String>> _collapseUris(Iterable<String> uris, [int maxLength = 10]) {
+List<List<String>> _collapseUris(
+  Iterable<String> uris, [
+  final int maxLength = _initialCapacity,
+]) {
   final length = uris.length;
   if (length <= maxLength) {
     return [uris.toList()];
@@ -115,7 +120,10 @@ Future<int> _requestLength(String uri, [CancelToken? cancelToken]) async {
   return _parseLength(response.headers);
 }
 
-int _parseLength(Headers headers, [String lengthHeader = Headers.contentLengthHeader]) {
+int _parseLength(
+  Headers headers, [
+  final String lengthHeader = Headers.contentLengthHeader,
+]) {
   var compressed = false;
   final contentEncoding = headers.value(Headers.contentEncodingHeader);
   if (contentEncoding != null) {
