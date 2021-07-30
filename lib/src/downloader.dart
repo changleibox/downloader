@@ -30,7 +30,7 @@ abstract class Downloader {
     required this.url,
     this.onReceiveProgress,
   })  : _cancelToken = CancelToken(),
-        _controller = StreamController<Uint8List>.broadcast() {
+        _controller = StreamController<Uint8List>() {
     _controller.onCancel = () => _cancelToken.cancel();
   }
 
@@ -78,21 +78,32 @@ abstract class Downloader {
   }) {
     final bytes = <int>[];
     final completer = Completer<Uint8List>();
+    Future<void> onDone() async {
+      final data = Uint8List.fromList(bytes);
+      bytes.clear();
+      completer.complete(data);
+    }
+
+    Future<void> onError(Object error, [StackTrace? stackTrace]) async {
+      bytes.clear();
+      completer.completeError(error, stackTrace);
+    }
+
     final subscription = asStream(
       url,
       onReceiveProgress: onReceiveProgress,
     ).listen(
       bytes.addAll,
-      onDone: () {
-        completer.complete(Uint8List.fromList(bytes));
-      },
-      onError: (Object error, [StackTrace? stackTrace]) {
-        completer.completeError(error, stackTrace);
-      },
+      onDone: onDone,
+      onError: onError,
       cancelOnError: true,
     );
-    cancelToken?.whenCancel.then((value) {
-      subscription.cancel();
+    cancelToken?.whenCancel.then((value) async {
+      try {
+        await subscription.cancel();
+      } finally {
+        await onError(value, value.stackTrace);
+      }
     });
     return completer.future;
   }
@@ -141,8 +152,12 @@ abstract class Downloader {
       onError: onError,
       cancelOnError: true,
     );
-    cancelToken?.whenCancel.then((value) {
-      subscription.cancel();
+    cancelToken?.whenCancel.then((value) async {
+      try {
+        await subscription.cancel();
+      } finally {
+        await onError(value, value.stackTrace);
+      }
     });
     return completer.future;
   }
@@ -225,7 +240,7 @@ abstract class Downloader {
   }
 
   void _onError(Object error, [StackTrace? stackTrace]) {
-    if (_controller.isClosed || (error is DioError && error.type == DioErrorType.cancel)) {
+    if (_controller.isClosed) {
       return;
     }
     _controller.addError(error, stackTrace);
