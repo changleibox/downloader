@@ -31,7 +31,7 @@ Interceptors get interceptors => _plainRequest.interceptors;
 
 /// 下载文件
 Future<Uint8List?> requestAsBytes(
-  String uri, {
+  final String uri, {
   final ProgressCallback? onReceiveProgress,
   final ValueChanged<Uint8List>? onReceive,
   final CancelToken? cancelToken,
@@ -71,7 +71,7 @@ Future<Uint8List?> requestAsBytes(
 
 /// 批量获取[uris]对应的文件大小总合
 Future<int> requestLength(
-  Iterable<String> uris, {
+  final Iterable<String> uris, {
   final String lengthHeader = Headers.contentLengthHeader,
   final CancelToken? cancelToken,
 }) async {
@@ -97,7 +97,7 @@ Future<int> requestLength(
 }
 
 List<List<String>> _collapseUris(
-  Iterable<String> uris, [
+  final Iterable<String> uris, [
   final int maxLength = _initialCapacity,
 ]) {
   final length = uris.length;
@@ -111,7 +111,10 @@ List<List<String>> _collapseUris(
   return collapsedUris;
 }
 
-Future<int> _requestLength(String uri, [CancelToken? cancelToken]) async {
+Future<int> _requestLength(
+  final String uri, [
+  final CancelToken? cancelToken,
+]) async {
   final response = await _plainRequest.head<void>(
     uri,
     cancelToken: cancelToken,
@@ -120,7 +123,7 @@ Future<int> _requestLength(String uri, [CancelToken? cancelToken]) async {
 }
 
 int _parseLength(
-  Headers headers, [
+  final Headers headers, [
   final String lengthHeader = Headers.contentLengthHeader,
 ]) {
   var compressed = false;
