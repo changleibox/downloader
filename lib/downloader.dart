@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2021 CHANGLEI. All rights reserved.
+ */
+
 library downloader;
 
 export 'package:downloader/src/downloader.dart';

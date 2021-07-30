@@ -1,6 +1,11 @@
+/*
+ * Copyright (c) 2021 CHANGLEI. All rights reserved.
+ */
+
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:downloader/downloader.dart';
 import 'package:downloader/src/downloader.dart';
 import 'package:downloader/src/request.dart';
 import 'package:flutter/foundation.dart';

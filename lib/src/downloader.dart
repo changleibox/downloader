@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2021 CHANGLEI. All rights reserved.
+ */
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -6,6 +10,12 @@ import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
 import 'package:downloader/src/universal_downloader.dart';
 import 'package:flutter/cupertino.dart';
+
+/// 构建Downloader
+typedef DownloaderBuilder = Downloader Function(
+  String url,
+  ProgressCallback? onReceiveProgress,
+);
 
 /// Created by changlei on 2021/7/29.
 ///
@@ -26,17 +36,22 @@ abstract class Downloader {
     required String url,
     ProgressCallback? onReceiveProgress,
   }) {
-    if (url.endsWith('.m3u8')) {
-      return M3u8Downloader(
-        url: url,
-        onReceiveProgress: onReceiveProgress,
-      );
-    } else {
-      return UniversalDownloader(
-        url: url,
-        onReceiveProgress: onReceiveProgress,
-      );
+    final pointIndex = url.lastIndexOf('.');
+    var extension = '';
+    if (pointIndex >= 0 || pointIndex < url.length) {
+      extension = url.substring(pointIndex);
     }
+    final keys = _downloaderBuilders.keys;
+    for (var key in keys) {
+      final regExp = RegExp(key, caseSensitive: false);
+      if (regExp.hasMatch(extension)) {
+        return _downloaderBuilders[key]!(url, onReceiveProgress);
+      }
+    }
+    return UniversalDownloader(
+      url: url,
+      onReceiveProgress: onReceiveProgress,
+    );
   }
 
   /// 使用[Stream]下载
@@ -128,6 +143,27 @@ abstract class Downloader {
     });
     return completer.future;
   }
+
+  /// 加载下载管理器，按照后缀名
+  /// 注意，如果传入的[extensions]已经存在，则会替换原来的[downloader]
+  /// 传入空的[extensions]，则代表匹配所有的文件类型
+  static void put(List<String> extensions, DownloaderBuilder builder) {
+    final sortedExtensions = List.of(extensions)..sort();
+    var key = sortedExtensions.join('|');
+    if (sortedExtensions.isEmpty) {
+      key = '.*?';
+    }
+    _downloaderBuilders['\.$key\$'] = builder;
+  }
+
+  static final _downloaderBuilders = <String, DownloaderBuilder>{
+    'm3u8': (url, onReceiveProgress) {
+      return M3u8Downloader(
+        url: url,
+        onReceiveProgress: onReceiveProgress,
+      );
+    },
+  };
 
   /// url
   final String url;
