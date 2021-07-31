@@ -213,7 +213,7 @@ abstract class Downloader {
       if (target?.existsSync() == true) {
         target = target!.renameSync(newPath);
       } else {
-        target = File(newPath);
+        target = File(newPath)..createSync(recursive: true);
       }
       ioSink ??= target!.openWrite(mode: FileMode.writeOnly);
     }
