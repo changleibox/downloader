@@ -24,25 +24,51 @@ abstract class DownloaderDio with DioMixin implements Dio {
   /// 构造函数
   factory DownloaderDio([BaseOptions? options]) => createDio(options);
 
+  /// 获取stream
+  Future<void> asStream(
+    final String path, {
+    final ProgressCallback? onReceiveProgress,
+    final ValueChanged<Uint8List>? onData,
+    final VoidCallback? onDone,
+    final Function? onError,
+    final bool? cancelOnError,
+    final CancelToken? cancelToken,
+    final Map<String, dynamic>? queryParameters,
+    final String lengthHeader = Headers.contentLengthHeader,
+    final dynamic data,
+    final Options? options,
+  });
+
   /// 获取bytes
   Future<Uint8List?> asBytes(
     final String path, {
     final ProgressCallback? onReceiveProgress,
-    final ValueChanged<Uint8List>? onReceive,
+    final ValueChanged<Uint8List>? onData,
     final CancelToken? cancelToken,
+    final Map<String, dynamic>? queryParameters,
+    final String lengthHeader = Headers.contentLengthHeader,
+    final dynamic data,
+    final Options? options,
   });
 
   /// 获取文件长度
   Future<int> contentLength(
-    final String path, [
+    final String path, {
     final CancelToken? cancelToken,
-  ]);
+    final Map<String, dynamic>? queryParameters,
+    final String lengthHeader = Headers.contentLengthHeader,
+    final dynamic data,
+    final Options? options,
+  });
 
   /// 批量获取[paths]对应的文件大小总合
   Future<int> contentLengths(
     final Iterable<String> paths, {
-    final String lengthHeader = Headers.contentLengthHeader,
     final CancelToken? cancelToken,
+    final Map<String, dynamic>? queryParameters,
+    final String lengthHeader = Headers.contentLengthHeader,
+    final dynamic data,
+    final Options? options,
   });
 }
 
@@ -81,33 +107,81 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   }
 
   @override
-  Future<Uint8List?> asBytes(
+  Future<void> asStream(
     final String path, {
     final ProgressCallback? onReceiveProgress,
-    final ValueChanged<Uint8List>? onReceive,
+    final ValueChanged<Uint8List>? onData,
+    final VoidCallback? onDone,
+    final Function? onError,
+    final bool? cancelOnError,
     final CancelToken? cancelToken,
+    final Map<String, dynamic>? queryParameters,
+    final String lengthHeader = Headers.contentLengthHeader,
+    final dynamic data,
+    final Options? options,
   }) async {
+    final mergedOptions = options ?? Options();
+    mergedOptions.responseType = ResponseType.stream;
     final response = await request<ResponseBody>(
       path,
-      options: Options(
-        responseType: ResponseType.stream,
-      ),
       cancelToken: cancelToken,
+      queryParameters: queryParameters,
+      options: mergedOptions,
+      data: data,
     );
     final responseBody = response.data;
     if (responseBody == null) {
       return null;
     }
-    final total = _parseLength(response.headers);
+    final completer = Completer<void>();
+    final total = _parseLength(
+      response.headers,
+      lengthHeader,
+    );
     var received = 0;
-    final completer = Completer<Uint8List>();
-    final data = <int>[];
     responseBody.stream.listen(
       (event) {
-        data.addAll(event);
         received += event.length;
         onReceiveProgress?.call(received, total);
-        onReceive?.call(event);
+        onData?.call(event);
+      },
+      onDone: () {
+        completer.complete();
+        onDone?.call();
+      },
+      onError: (Object error, [StackTrace? stackTrace]) {
+        completer.completeError(error, stackTrace);
+        onError?.call(error, stackTrace);
+      },
+      cancelOnError: cancelOnError,
+    );
+    return completer.future;
+  }
+
+  @override
+  Future<Uint8List?> asBytes(
+    final String path, {
+    final ProgressCallback? onReceiveProgress,
+    final ValueChanged<Uint8List>? onData,
+    final CancelToken? cancelToken,
+    final Map<String, dynamic>? queryParameters,
+    final String lengthHeader = Headers.contentLengthHeader,
+    final dynamic data,
+    final Options? options,
+  }) {
+    final completer = Completer<Uint8List>();
+    final data = <int>[];
+    asStream(
+      path,
+      onReceiveProgress: onReceiveProgress,
+      cancelToken: cancelToken,
+      queryParameters: queryParameters,
+      lengthHeader: lengthHeader,
+      options: options,
+      data: data,
+      onData: (value) {
+        data.addAll(value);
+        onData?.call(value);
       },
       onDone: () {
         completer.complete(Uint8List.fromList(data));
@@ -122,27 +196,44 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
 
   @override
   Future<int> contentLength(
-    final String path, [
+    final String path, {
     final CancelToken? cancelToken,
-  ]) async {
+    final Map<String, dynamic>? queryParameters,
+    final String lengthHeader = Headers.contentLengthHeader,
+    final dynamic data,
+    final Options? options,
+  }) async {
     final response = await head<void>(
       path,
       cancelToken: cancelToken,
+      queryParameters: queryParameters,
+      options: options,
+      data: data,
     );
-    return _parseLength(response.headers);
+    return _parseLength(response.headers, lengthHeader);
   }
 
   @override
   Future<int> contentLengths(
     final Iterable<String> paths, {
-    final String lengthHeader = Headers.contentLengthHeader,
     final CancelToken? cancelToken,
+    final Map<String, dynamic>? queryParameters,
+    final String lengthHeader = Headers.contentLengthHeader,
+    final dynamic data,
+    final Options? options,
   }) async {
     if (paths.isEmpty) {
       return 0;
     }
     final lengths = await Future.wait(paths.map((e) {
-      return contentLength(e, cancelToken);
+      return contentLength(
+        e,
+        cancelToken: cancelToken,
+        queryParameters: queryParameters,
+        lengthHeader: lengthHeader,
+        options: options,
+        data: data,
+      );
     }));
     return lengths.reduce((value, element) => value + element);
   }

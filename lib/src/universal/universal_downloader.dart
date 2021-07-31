@@ -22,9 +22,10 @@ class UniversalDownloader extends Downloader {
 
   @override
   Future<void> onDownload(String url, ValueChanged<Uint8List> onData) async {
-    await dio.asBytes(
+    await dio.asStream(
       url,
-      onReceive: onData,
+      onData: onData,
+      cancelOnError: true,
       cancelToken: cancelToken,
       onReceiveProgress: onReceiveProgress,
     );

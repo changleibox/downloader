@@ -54,7 +54,7 @@ class M3u8Downloader extends Downloader {
       final data = await dio.asBytes(
         value.uri,
         cancelToken: cancelToken,
-        onReceive: (value) {
+        onData: (value) {
           received += value.length;
           onReceiveProgress?.call(received, total);
         },

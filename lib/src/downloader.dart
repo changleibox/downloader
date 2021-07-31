@@ -115,6 +115,7 @@ abstract class Downloader {
     String path, {
     CancelToken? cancelToken,
     ProgressCallback? onReceiveProgress,
+    bool deleteOnError = true,
   }) {
     final completer = Completer<void>();
     final target = File(path);
@@ -123,23 +124,35 @@ abstract class Downloader {
     }
     target.createSync(recursive: true);
     final ioSink = target.openWrite();
-    Future<void> onDone() async {
+    var closed = false;
+    Future<void> _closeAndDelete() async {
+      if (closed) {
+        return;
+      }
+      closed = true;
       try {
         await ioSink.flush();
         await ioSink.close();
+      } finally {
+        if (deleteOnError) {
+          target.deleteSync(recursive: true);
+        }
+      }
+    }
+
+    Future<void> onDone() async {
+      try {
+        await _closeAndDelete();
         completer.complete();
       } catch (error, stackTrace) {
-        target.deleteSync(recursive: true);
         completer.completeError(error, stackTrace);
       }
     }
 
     Future<void> onError(Object error, [StackTrace? stackTrace]) async {
       try {
-        await ioSink.flush();
-        await ioSink.close();
+        await _closeAndDelete();
       } finally {
-        target.deleteSync(recursive: true);
         completer.completeError(error, stackTrace);
       }
     }
