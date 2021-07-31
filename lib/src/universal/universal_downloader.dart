@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
+import 'package:downloader/src/dio/downloader_dio.dart';
 import 'package:downloader/src/dio/request.dart';
 import 'package:downloader/src/downloader.dart';
 import 'package:flutter/foundation.dart';
@@ -18,7 +19,7 @@ class UniversalDownloader extends Downloader {
   UniversalDownloader({
     required String url,
     ProgressCallback? onReceiveProgress,
-    ValueChanged<Headers>? onHeaders,
+    FutureOrValueChanged<void, Headers>? onHeaders,
     Map<String, dynamic>? queryParameters,
     String lengthHeader = Headers.contentLengthHeader,
     dynamic data,

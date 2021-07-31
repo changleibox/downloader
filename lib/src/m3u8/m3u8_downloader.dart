@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:downloader/src/dio/downloader_dio.dart';
 import 'package:downloader/src/dio/request.dart';
 import 'package:downloader/src/downloader.dart';
 import 'package:downloader/src/m3u8/m3u8.dart';
@@ -19,7 +20,7 @@ class M3u8Downloader extends Downloader {
   M3u8Downloader({
     required String url,
     ProgressCallback? onReceiveProgress,
-    ValueChanged<Headers>? onHeaders,
+    FutureOrValueChanged<void, Headers>? onHeaders,
     Map<String, dynamic>? queryParameters,
     String lengthHeader = Headers.contentLengthHeader,
     dynamic data,

@@ -17,6 +17,9 @@ import 'entry_stub.dart'
 
 const _capacity = 10;
 
+/// 返回[FutureOr]的[ValueChanged]
+typedef FutureOrValueChanged<R, T> = FutureOr<R> Function(T value);
+
 /// Created by changlei on 2021/7/30.
 ///
 /// 下载管理器专用[Dio]
@@ -28,7 +31,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   Future<void> asStream(
     final String path, {
     final ProgressCallback? onReceiveProgress,
-    final ValueChanged<Headers>? onHeaders,
+    final FutureOrValueChanged<void, Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final VoidCallback? onDone,
     final Function? onError,
@@ -44,7 +47,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   Future<Uint8List?> asBytes(
     final String path, {
     final ProgressCallback? onReceiveProgress,
-    final ValueChanged<Headers>? onHeaders,
+    final FutureOrValueChanged<void, Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final CancelToken? cancelToken,
     final Map<String, dynamic>? queryParameters,
@@ -57,7 +60,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   Future<int> contentLength(
     final String path, {
     final CancelToken? cancelToken,
-    final ValueChanged<Headers>? onHeaders,
+    final FutureOrValueChanged<void, Headers>? onHeaders,
     final Map<String, dynamic>? queryParameters,
     final String lengthHeader = Headers.contentLengthHeader,
     final dynamic data,
@@ -68,7 +71,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   Future<int> contentLengths(
     final Iterable<String> paths, {
     final CancelToken? cancelToken,
-    final ValueChanged<Headers>? onHeaders,
+    final FutureOrValueChanged<void, Headers>? onHeaders,
     final Map<String, dynamic>? queryParameters,
     final String lengthHeader = Headers.contentLengthHeader,
     final dynamic data,
@@ -114,7 +117,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   Future<void> asStream(
     final String path, {
     final ProgressCallback? onReceiveProgress,
-    final ValueChanged<Headers>? onHeaders,
+    final FutureOrValueChanged<void, Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final VoidCallback? onDone,
     final Function? onError,
@@ -138,7 +141,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
     if (responseBody == null) {
       return null;
     }
-    final headers = _parseHeaders(response, onHeaders);
+    final headers = await _parseHeaders(response, onHeaders);
     final total = _parseLength(headers, lengthHeader);
     final completer = Completer<void>();
     var received = 0;
@@ -165,7 +168,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   Future<Uint8List?> asBytes(
     final String path, {
     final ProgressCallback? onReceiveProgress,
-    final ValueChanged<Headers>? onHeaders,
+    final FutureOrValueChanged<void, Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final CancelToken? cancelToken,
     final Map<String, dynamic>? queryParameters,
@@ -203,7 +206,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   Future<int> contentLength(
     final String path, {
     final CancelToken? cancelToken,
-    final ValueChanged<Headers>? onHeaders,
+    final FutureOrValueChanged<void, Headers>? onHeaders,
     final Map<String, dynamic>? queryParameters,
     final String lengthHeader = Headers.contentLengthHeader,
     final dynamic data,
@@ -216,7 +219,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
       options: options,
       data: data,
     );
-    final headers = _parseHeaders(response, onHeaders);
+    final headers = await _parseHeaders(response, onHeaders);
     return _parseLength(headers, lengthHeader);
   }
 
@@ -265,13 +268,16 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
     return total;
   }
 
-  Headers _parseHeaders(final Response response, ValueChanged<Headers>? onHeaders) {
+  Future<Headers> _parseHeaders(final Response response, FutureOrValueChanged<void, Headers>? onHeaders) async {
     final headers = response.headers;
     if (onHeaders != null) {
       // Add real uri and redirect information to headers
       headers.add('redirects', response.redirects.length.toString());
       headers.add('uri', response.realUri.toString());
-      onHeaders(headers);
+      final futureOr = onHeaders(headers);
+      if (futureOr is Future) {
+        await futureOr;
+      }
     }
     return headers;
   }

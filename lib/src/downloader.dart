@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
+import 'package:downloader/src/dio/downloader_dio.dart';
 import 'package:downloader/src/dio/request.dart' as request;
 import 'package:downloader/src/universal/universal_downloader.dart';
 import 'package:flutter/cupertino.dart';
@@ -16,7 +17,7 @@ import 'package:flutter/cupertino.dart';
 typedef DownloaderBuilder = Downloader Function(
   String url,
   ProgressCallback? onReceiveProgress,
-  ValueChanged<Headers>? onHeaders,
+  FutureOrValueChanged<void, Headers>? onHeaders,
   Map<String, dynamic>? queryParameters,
   String lengthHeader,
   Object? data,
@@ -41,15 +42,21 @@ abstract class Downloader {
     this.options,
   })  : _cancelToken = CancelToken(),
         _controller = StreamController<Uint8List>() {
-    _cancelToken.whenCancel.then((value) => _controller.onCancel = null);
-    _controller.onCancel = () => _cancelToken.cancel();
+    _controller.onCancel = () {
+      if (!isCancelled) {
+        _cancelToken.cancel();
+      }
+    };
+    _cancelToken.whenCancel.then((value) {
+      return _controller.onCancel = null;
+    });
   }
 
   /// 构造函数，按照文件类型选择合适的下载器
   factory Downloader.extension({
     required String url,
     ProgressCallback? onReceiveProgress,
-    ValueChanged<Headers>? onHeaders,
+    FutureOrValueChanged<void, Headers>? onHeaders,
     Map<String, dynamic>? queryParameters,
     String lengthHeader = Headers.contentLengthHeader,
     dynamic data,
@@ -90,7 +97,7 @@ abstract class Downloader {
   static Stream<Uint8List> asStream(
     String url, {
     ProgressCallback? onReceiveProgress,
-    ValueChanged<Headers>? onHeaders,
+    FutureOrValueChanged<void, Headers>? onHeaders,
     Map<String, dynamic>? queryParameters,
     String lengthHeader = Headers.contentLengthHeader,
     dynamic data,
@@ -114,7 +121,7 @@ abstract class Downloader {
     String url, {
     CancelToken? cancelToken,
     ProgressCallback? onReceiveProgress,
-    ValueChanged<Headers>? onHeaders,
+    FutureOrValueChanged<void, Headers>? onHeaders,
     Map<String, dynamic>? queryParameters,
     String lengthHeader = Headers.contentLengthHeader,
     dynamic data,
@@ -160,44 +167,75 @@ abstract class Downloader {
   /// 使用[File]下载
   static Future<void> asFile(
     String url,
-    String savePath, {
+    dynamic savePath, {
     CancelToken? cancelToken,
     ProgressCallback? onReceiveProgress,
-    ValueChanged<Headers>? onHeaders,
+    FutureOrValueChanged<void, Headers>? onHeaders,
     bool deleteOnError = true,
     Map<String, dynamic>? queryParameters,
     String lengthHeader = Headers.contentLengthHeader,
     dynamic data,
     Options? options,
   }) {
-    final target = File(savePath);
-    target.createSync(recursive: true);
-    final ioSink = target.openWrite();
+    assert(
+      savePath is String || savePath is FutureOrValueChanged<String, Headers>,
+      'savePath callback type must be `FutureOr<String> Function(Headers)`',
+    );
+    File? target;
     void deleteTarget() {
-      if (deleteOnError && target.existsSync()) {
-        target.deleteSync(recursive: true);
+      if (deleteOnError && target?.existsSync() == true) {
+        target!.deleteSync(recursive: true);
+      }
+      target = null;
+    }
+
+    IOSink? ioSink;
+    Future<void> closeIOSink() async {
+      try {
+        await ioSink?.flush();
+        await ioSink?.close();
+      } finally {
+        ioSink = null;
       }
     }
 
     var closed = false;
-    Future<void> _closeAndDelete() async {
+    Future<void> closeAndDelete() async {
       if (closed) {
         return;
       }
       closed = true;
       try {
-        await ioSink.flush();
-        await ioSink.close();
+        await closeIOSink();
       } finally {
         deleteTarget();
       }
     }
 
+    Future<void> handleHeaders(Headers headers) async {
+      onHeaders?.call(headers);
+      String newPath;
+      if (savePath is String) {
+        newPath = savePath;
+      } else {
+        final futureOr = (savePath as FutureOrValueChanged<String, Headers>)(headers);
+        newPath = futureOr is Future ? await futureOr : futureOr;
+      }
+      if (newPath == target?.path) {
+        return;
+      }
+      if (target?.existsSync() == true) {
+        target = target!.renameSync(newPath);
+      } else {
+        target = File(newPath)..createSync(recursive: true);
+      }
+      ioSink ??= target!.openWrite();
+    }
+
     final completer = Completer<void>();
     Future<void> onDone() async {
       try {
-        await ioSink.flush();
-        await ioSink.close();
+        await closeIOSink();
         completer.complete();
       } catch (error, stackTrace) {
         deleteTarget();
@@ -207,7 +245,7 @@ abstract class Downloader {
 
     Future<void> onError(Object error, [StackTrace? stackTrace]) async {
       try {
-        await _closeAndDelete();
+        await closeAndDelete();
       } finally {
         completer.completeError(error, stackTrace);
       }
@@ -216,13 +254,13 @@ abstract class Downloader {
     final subscription = asStream(
       url,
       onReceiveProgress: onReceiveProgress,
-      onHeaders: onHeaders,
+      onHeaders: handleHeaders,
       queryParameters: queryParameters,
       lengthHeader: lengthHeader,
       data: data,
       options: options,
     ).listen(
-      ioSink.add,
+      (event) => ioSink?.add(event),
       onDone: onDone,
       onError: onError,
       cancelOnError: true,
@@ -281,7 +319,7 @@ abstract class Downloader {
   final ProgressCallback? onReceiveProgress;
 
   /// 在返回headers的时候回调
-  final ValueChanged<Headers>? onHeaders;
+  final FutureOrValueChanged<void, Headers>? onHeaders;
 
   /// 请求参数
   final Map<String, dynamic>? queryParameters;
