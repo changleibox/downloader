@@ -31,12 +31,8 @@ abstract class Downloader {
     this.onReceiveProgress,
   })  : _cancelToken = CancelToken(),
         _controller = StreamController<Uint8List>() {
-    _controller.onCancel = () {
-      if (_cancelToken.isCancelled) {
-        return;
-      }
-      _cancelToken.cancel();
-    };
+    _cancelToken.whenCancel.then((value) => _controller.onCancel = null);
+    _controller.onCancel = () => _cancelToken.cancel();
   }
 
   /// 构造函数，按照文件类型选择合适的下载器
