@@ -37,17 +37,17 @@ class M3u8Downloader extends Downloader {
 
   @override
   Future<void> onDownload(String url, ValueChanged<Uint8List> onData) async {
-    var m3u8 = await M3u8.parse(url);
+    var m3u8 = await M3u8.parse(url, cancelToken);
     final streamInf = m3u8?.streamInf;
     if (streamInf?.isNotEmpty == true) {
-      m3u8 = await M3u8.parse(streamInf!.first.uri);
+      m3u8 = await M3u8.parse(streamInf!.first.uri, cancelToken);
     }
     if (m3u8 == null) {
       return null;
     }
 
     final key = m3u8.key;
-    final keyData = await key?.keyData;
+    final keyData = await key?.keyData(cancelToken);
 
     // 下载ts文件列表
     final playlist = [...?m3u8.playlist];

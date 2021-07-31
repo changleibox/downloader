@@ -214,6 +214,9 @@ abstract class Downloader {
 
     Future<void> handleHeaders(Headers headers) async {
       onHeaders?.call(headers);
+      if (headers.isContentLength) {
+        return;
+      }
       String newPath;
       if (savePath is String) {
         newPath = savePath;

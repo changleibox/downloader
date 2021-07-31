@@ -219,7 +219,11 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
       options: options,
       data: data,
     );
-    final headers = await _parseHeaders(response, onHeaders);
+    final headers = await _parseHeaders(
+      response,
+      onHeaders,
+      Headers.contentLengthHeader,
+    );
     return _parseLength(headers, lengthHeader);
   }
 
@@ -268,12 +272,19 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
     return total;
   }
 
-  Future<Headers> _parseHeaders(final Response response, FutureOrValueChanged<void, Headers>? onHeaders) async {
+  Future<Headers> _parseHeaders(
+    final Response response,
+    FutureOrValueChanged<void, Headers>? onHeaders, [
+    String? behavior,
+  ]) async {
     final headers = response.headers;
     if (onHeaders != null) {
       // Add real uri and redirect information to headers
       headers.add('redirects', response.redirects.length.toString());
       headers.add('uri', response.realUri.toString());
+      if (behavior != null) {
+        headers.add('behavior', behavior);
+      }
       final futureOr = onHeaders(headers);
       if (futureOr is Future) {
         await futureOr;
@@ -281,4 +292,10 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
     }
     return headers;
   }
+}
+
+/// 扩展[Headers]
+extension HeadersBehavior on Headers {
+  /// 是否正在请求contentLength
+  bool get isContentLength => value('behavior') == Headers.contentLengthHeader;
 }
