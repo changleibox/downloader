@@ -268,6 +268,14 @@ class DownloadOptions {
     this.options,
   });
 
+  /// 只有请求参数的[DownloadOptions]
+  const factory DownloadOptions.barePole({
+    Map<String, dynamic>? queryParameters,
+    String lengthHeader,
+    Object? data,
+    Options? options,
+  }) = BarePoledDownloadOptions;
+
   /// 监听进度
   final ProgressCallback? onReceiveProgress;
 
@@ -306,12 +314,28 @@ class DownloadOptions {
   }
 
   /// 只有请求参数的[DownloadOptions]
-  DownloadOptions get barePole {
-    return DownloadOptions(
+  DownloadOptions get barePoled {
+    return BarePoledDownloadOptions(
       queryParameters: queryParameters,
       lengthHeader: lengthHeader,
       data: data,
       options: options,
     );
   }
+}
+
+/// 只有请求参数的[DownloadOptions]
+class BarePoledDownloadOptions extends DownloadOptions {
+  /// 构造函数
+  const BarePoledDownloadOptions({
+    Map<String, dynamic>? queryParameters,
+    String lengthHeader = Headers.contentLengthHeader,
+    Object? data,
+    Options? options,
+  }) : super(
+          queryParameters: queryParameters,
+          lengthHeader: lengthHeader,
+          data: data,
+          options: options,
+        );
 }

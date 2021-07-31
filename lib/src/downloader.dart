@@ -68,11 +68,17 @@ abstract class Downloader {
   /// 使用[Stream]下载
   static Stream<Uint8List> asStream(
     String url, {
-    DownloadOptions? options,
+    BarePoledDownloadOptions? options,
+    ProgressCallback? onReceiveProgress,
+    FutureOrValueChanged<void, Headers>? onHeaders,
   }) {
+    final realOptions = options ?? const DownloadOptions();
     final downloader = Downloader.extension(
       url: url,
-      options: options,
+      options: realOptions.copyWith(
+        onReceiveProgress: onReceiveProgress,
+        onHeaders: onHeaders,
+      ),
     );
     downloader.download(url);
     return downloader.stream;
@@ -82,7 +88,9 @@ abstract class Downloader {
   static Future<Uint8List> asBytes(
     String url, {
     CancelToken? cancelToken,
-    DownloadOptions? options,
+    BarePoledDownloadOptions? options,
+    ProgressCallback? onReceiveProgress,
+    FutureOrValueChanged<void, Headers>? onHeaders,
   }) {
     final bytes = <int>[];
     final completer = Completer<Uint8List>();
@@ -100,6 +108,8 @@ abstract class Downloader {
     final subscription = asStream(
       url,
       options: options,
+      onReceiveProgress: onReceiveProgress,
+      onHeaders: onHeaders,
     ).listen(
       bytes.addAll,
       onDone: onDone,
@@ -121,7 +131,9 @@ abstract class Downloader {
     String url,
     dynamic savePath, {
     CancelToken? cancelToken,
-    DownloadOptions? options,
+    BarePoledDownloadOptions? options,
+    ProgressCallback? onReceiveProgress,
+    FutureOrValueChanged<void, Headers>? onHeaders,
     bool deleteOnError = true,
   }) {
     assert(
@@ -201,12 +213,11 @@ abstract class Downloader {
       }
     }
 
-    options ??= const DownloadOptions();
     final subscription = asStream(
       url,
-      options: options.copyWith(
-        onHeaders: handleHeaders,
-      ),
+      options: options,
+      onReceiveProgress: onReceiveProgress,
+      onHeaders: handleHeaders,
     ).listen(
       (event) => ioSink?.add(event),
       onDone: onDone,

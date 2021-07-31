@@ -23,7 +23,7 @@ class M3u8Downloader extends Downloader {
 
   @override
   Future<void> onDownload(String url, ValueChanged<Uint8List> onData) async {
-    final barePoleOptions = options?.barePole;
+    final barePoleOptions = options?.barePoled;
     var m3u8 = await M3u8.parse(
       url,
       cancelToken: cancelToken,
