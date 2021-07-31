@@ -192,7 +192,7 @@ abstract class Downloader {
     }
 
     Future<void> createTarget(Headers headers) async {
-      if (headers.isContentLength) {
+      if (headers.isContentLength || !headers.isDownload) {
         return;
       }
       String newPath;

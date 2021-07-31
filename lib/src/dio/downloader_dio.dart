@@ -118,7 +118,11 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
     if (responseBody == null) {
       return null;
     }
-    final headers = await _parseHeaders(response, options?.onHeaders);
+    final headers = await _parseHeaders(
+      response,
+      onHeaders: options?.onHeaders,
+      behavior: HeadersBehavior._downloadHeader,
+    );
     final total = _parseLength(headers, options?.lengthHeader);
     final completer = Completer<void>();
     var received = 0;
@@ -184,8 +188,8 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
     );
     final headers = await _parseHeaders(
       response,
-      options?.onHeaders,
-      Headers.contentLengthHeader,
+      onHeaders: options?.onHeaders,
+      behavior: HeadersBehavior._contentLengthHeader,
     );
     return _parseLength(headers, options?.lengthHeader);
   }
@@ -229,10 +233,10 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   }
 
   Future<Headers> _parseHeaders(
-    final Response response,
-    FutureOrValueChanged<void, Headers>? onHeaders, [
+    final Response response, {
+    FutureOrValueChanged<void, Headers>? onHeaders,
     String? behavior,
-  ]) async {
+  }) async {
     final headers = response.headers;
     if (onHeaders != null) {
       // Add real uri and redirect information to headers
@@ -249,8 +253,14 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
 
 /// 扩展[Headers]
 extension HeadersBehavior on Headers {
+  static const _contentLengthHeader = 'contentLength';
+  static const _downloadHeader = 'download';
+
   /// 是否正在请求contentLength
-  bool get isContentLength => value('behavior') == Headers.contentLengthHeader;
+  bool get isContentLength => value('behavior') == _contentLengthHeader;
+
+  /// 是否正在下载
+  bool get isDownload => value('behavior') == _downloadHeader;
 }
 
 /// 配置
@@ -312,7 +322,7 @@ class DownloadOptions {
 
   /// 只有请求参数的[DownloadOptions]
   DownloadOptions get barePoled {
-    return BarePoledDownloadOptions(
+    return DownloadOptions(
       queryParameters: queryParameters,
       lengthHeader: lengthHeader,
       data: data,
