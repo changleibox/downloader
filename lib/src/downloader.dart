@@ -171,8 +171,7 @@ abstract class Downloader {
       }
     }
 
-    Future<void> handleHeaders(Headers headers) async {
-      options?.onHeaders?.call(headers);
+    Future<void> createTarget(Headers headers) async {
       if (headers.isContentLength) {
         return;
       }
@@ -192,6 +191,14 @@ abstract class Downloader {
         target = File(newPath)..createSync(recursive: true);
       }
       ioSink ??= target!.openWrite();
+    }
+
+    Future<void> handleHeaders(Headers headers) async {
+      try {
+        await createTarget(headers);
+      } finally {
+        onHeaders?.call(headers);
+      }
     }
 
     final completer = Completer<void>();

@@ -338,4 +338,14 @@ class BarePoledDownloadOptions extends DownloadOptions {
           data: data,
           options: options,
         );
+
+  @override
+  ProgressCallback? get onReceiveProgress {
+    throw UnimplementedError('`BarePoledDownloadOptions`不能调用`onReceiveProgress`');
+  }
+
+  @override
+  FutureOrValueChanged<void, Headers>? get onHeaders {
+    throw UnimplementedError('`BarePoledDownloadOptions`不能调用`onHeaders`');
+  }
 }
