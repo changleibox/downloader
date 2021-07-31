@@ -83,6 +83,39 @@ abstract class Downloader {
     return downloader.stream;
   }
 
+  /// 使用[StreamSubscription]下载
+  static StreamSubscription<Uint8List> asSubscribe(
+    String url, {
+    CancelToken? cancelToken,
+    BarePoledDownloadOptions? options,
+    ProgressCallback? onReceiveProgress,
+    FutureOrValueChanged<void, Headers>? onHeaders,
+    ValueChanged<Uint8List>? onData,
+    Future<void> Function(Object error, [StackTrace? stackTrace])? onError,
+    Future<void> Function()? onDone,
+    bool? cancelOnError = true,
+  }) {
+    final subscription = asStream(
+      url,
+      options: options,
+      onReceiveProgress: onReceiveProgress,
+      onHeaders: onHeaders,
+    ).listen(
+      onData,
+      onDone: onDone,
+      onError: onError,
+      cancelOnError: cancelOnError,
+    );
+    cancelToken?.whenCancel.then((value) async {
+      try {
+        await subscription.cancel();
+      } finally {
+        await onError?.call(value, value.stackTrace);
+      }
+    });
+    return subscription;
+  }
+
   /// 使用[Uint8List]下载
   static Future<Uint8List> asBytes(
     String url, {
@@ -104,24 +137,16 @@ abstract class Downloader {
       completer.completeError(error, stackTrace);
     }
 
-    final subscription = asStream(
+    asSubscribe(
       url,
+      cancelToken: cancelToken,
       options: options,
       onReceiveProgress: onReceiveProgress,
       onHeaders: onHeaders,
-    ).listen(
-      bytes.addAll,
+      onData: bytes.addAll,
       onDone: onDone,
       onError: onError,
-      cancelOnError: true,
     );
-    cancelToken?.whenCancel.then((value) async {
-      try {
-        await subscription.cancel();
-      } finally {
-        await onError(value, value.stackTrace);
-      }
-    });
     return completer.future;
   }
 
@@ -135,10 +160,6 @@ abstract class Downloader {
     FutureOrValueChanged<void, Headers>? onHeaders,
     bool deleteOnError = true,
   }) {
-    assert(
-      savePath is String || savePath is FutureOrValueChanged<String, Headers>,
-      'savePath callback type must be `FutureOr<String> Function(Headers)`',
-    );
     File? target;
     void deleteTarget() {
       if (deleteOnError && target?.existsSync() == true) {
@@ -177,9 +198,14 @@ abstract class Downloader {
       String newPath;
       if (savePath is String) {
         newPath = savePath;
+      } else if (savePath is FutureOrValueChanged<String, Headers>) {
+        newPath = await savePath(headers);
       } else {
-        final futureOr = (savePath as FutureOrValueChanged<String, Headers>)(headers);
-        newPath = futureOr is Future ? await futureOr : futureOr;
+        throw ArgumentError.value(
+          savePath,
+          'savePath',
+          'callback type must be `FutureOr<String> Function(Headers)` or `String`',
+        );
       }
       if (newPath == target?.path) {
         return;
@@ -196,7 +222,7 @@ abstract class Downloader {
       try {
         await createTarget(headers);
       } finally {
-        onHeaders?.call(headers);
+        await onHeaders?.call(headers);
       }
     }
 
@@ -219,24 +245,16 @@ abstract class Downloader {
       }
     }
 
-    final subscription = asStream(
+    asSubscribe(
       url,
+      cancelToken: cancelToken,
       options: options,
       onReceiveProgress: onReceiveProgress,
       onHeaders: handleHeaders,
-    ).listen(
-      (event) => ioSink?.add(event),
+      onData: (event) => ioSink?.add(event),
       onDone: onDone,
       onError: onError,
-      cancelOnError: true,
     );
-    cancelToken?.whenCancel.then((value) async {
-      try {
-        await subscription.cancel();
-      } finally {
-        await onError(value, value.stackTrace);
-      }
-    });
     return completer.future;
   }
 

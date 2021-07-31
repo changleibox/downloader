@@ -241,10 +241,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
       if (behavior != null) {
         headers.add('behavior', behavior);
       }
-      final futureOr = onHeaders(headers);
-      if (futureOr is Future) {
-        await futureOr;
-      }
+      await onHeaders(headers);
     }
     return headers;
   }
