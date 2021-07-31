@@ -145,7 +145,6 @@ abstract class Downloader {
       try {
         await ioSink.flush();
         await ioSink.close();
-        target.renameSync(savePath);
         completer.complete();
       } catch (error, stackTrace) {
         deleteTarget();
