@@ -16,6 +16,7 @@ import 'package:flutter/cupertino.dart';
 typedef DownloaderBuilder = Downloader Function(
   String url,
   ProgressCallback? onReceiveProgress,
+  ValueChanged<Headers>? onHeaders,
 );
 
 const _allMatchRegExp = r'.*?';
@@ -29,6 +30,7 @@ abstract class Downloader {
   Downloader({
     required this.url,
     this.onReceiveProgress,
+    this.onHeaders,
   })  : _cancelToken = CancelToken(),
         _controller = StreamController<Uint8List>() {
     _cancelToken.whenCancel.then((value) => _controller.onCancel = null);
@@ -39,6 +41,7 @@ abstract class Downloader {
   factory Downloader.extension({
     required String url,
     ProgressCallback? onReceiveProgress,
+    ValueChanged<Headers>? onHeaders,
   }) {
     final pointIndex = url.lastIndexOf('.');
     var extension = _allMatchRegExp;
@@ -49,12 +52,13 @@ abstract class Downloader {
     for (var key in keys) {
       final regExp = RegExp('\.$key\$', caseSensitive: false);
       if (regExp.hasMatch(extension)) {
-        return _downloaderBuilders[key]!(url, onReceiveProgress);
+        return _downloaderBuilders[key]!(url, onReceiveProgress, onHeaders);
       }
     }
     return UniversalDownloader(
       url: url,
       onReceiveProgress: onReceiveProgress,
+      onHeaders: onHeaders,
     );
   }
 
@@ -62,10 +66,12 @@ abstract class Downloader {
   static Stream<Uint8List> asStream(
     String url, {
     ProgressCallback? onReceiveProgress,
+    ValueChanged<Headers>? onHeaders,
   }) {
     final downloader = Downloader.extension(
       url: url,
       onReceiveProgress: onReceiveProgress,
+      onHeaders: onHeaders,
     );
     downloader.download(url);
     return downloader.stream;
@@ -76,6 +82,7 @@ abstract class Downloader {
     String url, {
     CancelToken? cancelToken,
     ProgressCallback? onReceiveProgress,
+    ValueChanged<Headers>? onHeaders,
   }) {
     final bytes = <int>[];
     final completer = Completer<Uint8List>();
@@ -93,6 +100,7 @@ abstract class Downloader {
     final subscription = asStream(
       url,
       onReceiveProgress: onReceiveProgress,
+      onHeaders: onHeaders,
     ).listen(
       bytes.addAll,
       onDone: onDone,
@@ -115,6 +123,7 @@ abstract class Downloader {
     String savePath, {
     CancelToken? cancelToken,
     ProgressCallback? onReceiveProgress,
+    ValueChanged<Headers>? onHeaders,
     bool deleteOnError = true,
   }) {
     final target = File(savePath);
@@ -163,6 +172,7 @@ abstract class Downloader {
     final subscription = asStream(
       url,
       onReceiveProgress: onReceiveProgress,
+      onHeaders: onHeaders,
     ).listen(
       ioSink.add,
       onDone: onDone,
@@ -195,10 +205,11 @@ abstract class Downloader {
   }
 
   static final _downloaderBuilders = <String, DownloaderBuilder>{
-    'm3u8': (url, onReceiveProgress) {
+    'm3u8': (url, onReceiveProgress, onHeaders) {
       return M3u8Downloader(
         url: url,
         onReceiveProgress: onReceiveProgress,
+        onHeaders: onHeaders,
       );
     },
   };
@@ -208,6 +219,9 @@ abstract class Downloader {
 
   /// 监听进度
   final ProgressCallback? onReceiveProgress;
+
+  /// 在返回headers的时候回调
+  final ValueChanged<Headers>? onHeaders;
 
   final CancelToken _cancelToken;
 

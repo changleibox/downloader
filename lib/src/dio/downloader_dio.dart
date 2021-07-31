@@ -28,6 +28,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   Future<void> asStream(
     final String path, {
     final ProgressCallback? onReceiveProgress,
+    final ValueChanged<Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final VoidCallback? onDone,
     final Function? onError,
@@ -43,6 +44,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   Future<Uint8List?> asBytes(
     final String path, {
     final ProgressCallback? onReceiveProgress,
+    final ValueChanged<Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final CancelToken? cancelToken,
     final Map<String, dynamic>? queryParameters,
@@ -55,6 +57,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   Future<int> contentLength(
     final String path, {
     final CancelToken? cancelToken,
+    final ValueChanged<Headers>? onHeaders,
     final Map<String, dynamic>? queryParameters,
     final String lengthHeader = Headers.contentLengthHeader,
     final dynamic data,
@@ -65,6 +68,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   Future<int> contentLengths(
     final Iterable<String> paths, {
     final CancelToken? cancelToken,
+    final ValueChanged<Headers>? onHeaders,
     final Map<String, dynamic>? queryParameters,
     final String lengthHeader = Headers.contentLengthHeader,
     final dynamic data,
@@ -110,6 +114,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   Future<void> asStream(
     final String path, {
     final ProgressCallback? onReceiveProgress,
+    final ValueChanged<Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final VoidCallback? onDone,
     final Function? onError,
@@ -133,11 +138,9 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
     if (responseBody == null) {
       return null;
     }
+    final headers = _parseHeaders(response, onHeaders);
+    final total = _parseLength(headers, lengthHeader);
     final completer = Completer<void>();
-    final total = _parseLength(
-      response.headers,
-      lengthHeader,
-    );
     var received = 0;
     responseBody.stream.listen(
       (event) {
@@ -162,6 +165,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   Future<Uint8List?> asBytes(
     final String path, {
     final ProgressCallback? onReceiveProgress,
+    final ValueChanged<Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final CancelToken? cancelToken,
     final Map<String, dynamic>? queryParameters,
@@ -174,6 +178,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
     asStream(
       path,
       onReceiveProgress: onReceiveProgress,
+      onHeaders: onHeaders,
       cancelToken: cancelToken,
       queryParameters: queryParameters,
       lengthHeader: lengthHeader,
@@ -198,6 +203,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   Future<int> contentLength(
     final String path, {
     final CancelToken? cancelToken,
+    final ValueChanged<Headers>? onHeaders,
     final Map<String, dynamic>? queryParameters,
     final String lengthHeader = Headers.contentLengthHeader,
     final dynamic data,
@@ -210,13 +216,15 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
       options: options,
       data: data,
     );
-    return _parseLength(response.headers, lengthHeader);
+    final headers = _parseHeaders(response, onHeaders);
+    return _parseLength(headers, lengthHeader);
   }
 
   @override
   Future<int> contentLengths(
     final Iterable<String> paths, {
     final CancelToken? cancelToken,
+    final ValueChanged<Headers>? onHeaders,
     final Map<String, dynamic>? queryParameters,
     final String lengthHeader = Headers.contentLengthHeader,
     final dynamic data,
@@ -229,6 +237,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
       return contentLength(
         e,
         cancelToken: cancelToken,
+        onHeaders: onHeaders,
         queryParameters: queryParameters,
         lengthHeader: lengthHeader,
         options: options,
@@ -254,5 +263,16 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
       total = int.parse(headers.value(lengthHeader) ?? '0');
     }
     return total;
+  }
+
+  Headers _parseHeaders(final Response response, ValueChanged<Headers>? onHeaders) {
+    final headers = response.headers;
+    if (onHeaders != null) {
+      // Add real uri and redirect information to headers
+      headers.add('redirects', response.redirects.length.toString());
+      headers.add('uri', response.realUri.toString());
+      onHeaders(headers);
+    }
+    return headers;
   }
 }

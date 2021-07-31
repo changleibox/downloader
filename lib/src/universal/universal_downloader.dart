@@ -18,7 +18,12 @@ class UniversalDownloader extends Downloader {
   UniversalDownloader({
     required String url,
     ProgressCallback? onReceiveProgress,
-  }) : super(url: url, onReceiveProgress: onReceiveProgress);
+    ValueChanged<Headers>? onHeaders,
+  }) : super(
+          url: url,
+          onReceiveProgress: onReceiveProgress,
+          onHeaders: onHeaders,
+        );
 
   @override
   Future<void> onDownload(String url, ValueChanged<Uint8List> onData) async {
@@ -28,6 +33,7 @@ class UniversalDownloader extends Downloader {
       cancelOnError: true,
       cancelToken: cancelToken,
       onReceiveProgress: onReceiveProgress,
+      onHeaders: onHeaders,
     );
   }
 }

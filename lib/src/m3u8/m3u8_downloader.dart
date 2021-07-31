@@ -19,7 +19,12 @@ class M3u8Downloader extends Downloader {
   M3u8Downloader({
     required String url,
     ProgressCallback? onReceiveProgress,
-  }) : super(url: url, onReceiveProgress: onReceiveProgress);
+    ValueChanged<Headers>? onHeaders,
+  }) : super(
+          url: url,
+          onReceiveProgress: onReceiveProgress,
+          onHeaders: onHeaders,
+        );
 
   @override
   Future<void> onDownload(String url, ValueChanged<Uint8List> onData) async {
@@ -44,7 +49,11 @@ class M3u8Downloader extends Downloader {
       total = await dio.contentLengths(
         playlist.map((e) => e.uri),
         cancelToken: cancelToken,
+        onHeaders: onHeaders,
       );
+    }
+    if (total != 0) {
+      onReceiveProgress?.call(received, total);
     }
 
     for (var value in playlist) {
@@ -54,6 +63,7 @@ class M3u8Downloader extends Downloader {
       final data = await dio.asBytes(
         value.uri,
         cancelToken: cancelToken,
+        onHeaders: onHeaders,
         onData: (value) {
           received += value.length;
           onReceiveProgress?.call(received, total);
