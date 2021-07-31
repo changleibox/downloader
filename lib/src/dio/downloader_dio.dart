@@ -4,8 +4,10 @@
 
 import 'dart:async';
 import 'dart:collection';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import 'entry_stub.dart'
 // ignore: uri_does_not_exist
@@ -18,14 +20,35 @@ const _capacity = 10;
 /// Created by changlei on 2021/7/30.
 ///
 /// 下载管理器专用[Dio]
-class DownloaderDio with DioMixin implements Dio {
+abstract class DownloaderDio with DioMixin implements Dio {
   /// 构造函数
   factory DownloaderDio([BaseOptions? options]) => createDio(options);
+
+  /// 获取bytes
+  Future<Uint8List?> getBytes(
+    final String path, {
+    final ProgressCallback? onReceiveProgress,
+    final ValueChanged<Uint8List>? onReceive,
+    final CancelToken? cancelToken,
+  });
+
+  /// 获取文件长度
+  Future<int> getContentLength(
+    final String path, [
+    final CancelToken? cancelToken,
+  ]);
+
+  /// 批量获取[paths]对应的文件大小总合
+  Future<int> getContentLengths(
+    final Iterable<String> paths, {
+    final String lengthHeader = Headers.contentLengthHeader,
+    final CancelToken? cancelToken,
+  });
 }
 
 /// 扩展dio
 /// 为了防止一次性请求太多，我们限制最多只能进行[_capacity]个请求
-mixin DownloaderDioMixin on DioMixin {
+mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   // 正在等待的队列
   final _waitingQueue = ListQueue<Function>(_capacity);
 
@@ -55,5 +78,90 @@ mixin DownloaderDioMixin on DioMixin {
       _waitingQueue.add(execute);
     }
     return completer.future;
+  }
+
+  @override
+  Future<Uint8List?> getBytes(
+    final String path, {
+    final ProgressCallback? onReceiveProgress,
+    final ValueChanged<Uint8List>? onReceive,
+    final CancelToken? cancelToken,
+  }) async {
+    final response = await request<ResponseBody>(
+      path,
+      options: Options(
+        responseType: ResponseType.stream,
+      ),
+      cancelToken: cancelToken,
+    );
+    final responseBody = response.data;
+    if (responseBody == null) {
+      return null;
+    }
+    final total = _parseLength(response.headers);
+    var received = 0;
+    final completer = Completer<Uint8List>();
+    final data = <int>[];
+    responseBody.stream.listen(
+      (event) {
+        data.addAll(event);
+        received += event.length;
+        onReceiveProgress?.call(received, total);
+        onReceive?.call(event);
+      },
+      onDone: () {
+        completer.complete(Uint8List.fromList(data));
+      },
+      onError: (Object error, [StackTrace? stackTrace]) {
+        completer.completeError(error, stackTrace);
+      },
+      cancelOnError: true,
+    );
+    return completer.future;
+  }
+
+  @override
+  Future<int> getContentLength(
+    final String path, [
+    final CancelToken? cancelToken,
+  ]) async {
+    final response = await head<void>(
+      path,
+      cancelToken: cancelToken,
+    );
+    return _parseLength(response.headers);
+  }
+
+  @override
+  Future<int> getContentLengths(
+    final Iterable<String> paths, {
+    final String lengthHeader = Headers.contentLengthHeader,
+    final CancelToken? cancelToken,
+  }) async {
+    if (paths.isEmpty) {
+      return 0;
+    }
+    final lengths = await Future.wait(paths.map((e) {
+      return getContentLength(e, cancelToken);
+    }));
+    return lengths.reduce((value, element) => value + element);
+  }
+
+  int _parseLength(
+    final Headers headers, [
+    final String lengthHeader = Headers.contentLengthHeader,
+  ]) {
+    var compressed = false;
+    final contentEncoding = headers.value(Headers.contentEncodingHeader);
+    if (contentEncoding != null) {
+      compressed = ['gzip', 'deflate', 'compress'].contains(contentEncoding);
+    }
+    var total = 0;
+    if (lengthHeader == Headers.contentLengthHeader && compressed) {
+      total = 0;
+    } else {
+      total = int.parse(headers.value(lengthHeader) ?? '0');
+    }
+    return total;
   }
 }
