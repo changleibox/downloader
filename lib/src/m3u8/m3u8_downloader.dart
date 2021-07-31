@@ -20,10 +20,18 @@ class M3u8Downloader extends Downloader {
     required String url,
     ProgressCallback? onReceiveProgress,
     ValueChanged<Headers>? onHeaders,
+    Map<String, dynamic>? queryParameters,
+    String lengthHeader = Headers.contentLengthHeader,
+    dynamic data,
+    Options? options,
   }) : super(
           url: url,
           onReceiveProgress: onReceiveProgress,
           onHeaders: onHeaders,
+          queryParameters: queryParameters,
+          lengthHeader: lengthHeader,
+          data: data,
+          options: options,
         );
 
   @override
@@ -50,6 +58,10 @@ class M3u8Downloader extends Downloader {
         playlist.map((e) => e.uri),
         cancelToken: cancelToken,
         onHeaders: onHeaders,
+        queryParameters: queryParameters,
+        lengthHeader: lengthHeader,
+        options: options,
+        data: data,
       );
     }
     if (total != 0) {
@@ -60,19 +72,23 @@ class M3u8Downloader extends Downloader {
       if (isCancelled) {
         break;
       }
-      final data = await dio.asBytes(
+      final bytes = await dio.asBytes(
         value.uri,
         cancelToken: cancelToken,
         onHeaders: onHeaders,
+        queryParameters: queryParameters,
+        lengthHeader: lengthHeader,
+        options: options,
+        data: data,
         onData: (value) {
           received += value.length;
           onReceiveProgress?.call(received, total);
         },
       );
-      if (data == null) {
+      if (bytes == null) {
         continue;
       }
-      onData(decrypt(data, keyData, key?.iv));
+      onData(decrypt(bytes, keyData, key?.iv));
     }
   }
 }

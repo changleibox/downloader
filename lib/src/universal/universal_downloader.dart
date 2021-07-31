@@ -19,10 +19,18 @@ class UniversalDownloader extends Downloader {
     required String url,
     ProgressCallback? onReceiveProgress,
     ValueChanged<Headers>? onHeaders,
+    Map<String, dynamic>? queryParameters,
+    String lengthHeader = Headers.contentLengthHeader,
+    dynamic data,
+    Options? options,
   }) : super(
           url: url,
           onReceiveProgress: onReceiveProgress,
           onHeaders: onHeaders,
+          queryParameters: queryParameters,
+          lengthHeader: lengthHeader,
+          data: data,
+          options: options,
         );
 
   @override
@@ -34,6 +42,10 @@ class UniversalDownloader extends Downloader {
       cancelToken: cancelToken,
       onReceiveProgress: onReceiveProgress,
       onHeaders: onHeaders,
+      queryParameters: queryParameters,
+      lengthHeader: lengthHeader,
+      options: options,
+      data: data,
     );
   }
 }
