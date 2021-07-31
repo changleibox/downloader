@@ -118,12 +118,18 @@ abstract class Downloader {
     bool deleteOnError = true,
   }) {
     final completer = Completer<void>();
-    final target = File(path);
+    final target = File('$path.tmp');
     if (target.existsSync()) {
       target.deleteSync(recursive: true);
     }
     target.createSync(recursive: true);
     final ioSink = target.openWrite();
+    void deleteTarget() {
+      if (deleteOnError && target.existsSync()) {
+        target.deleteSync(recursive: true);
+      }
+    }
+
     var closed = false;
     Future<void> _closeAndDelete() async {
       if (closed) {
@@ -134,17 +140,18 @@ abstract class Downloader {
         await ioSink.flush();
         await ioSink.close();
       } finally {
-        if (deleteOnError) {
-          target.deleteSync(recursive: true);
-        }
+        deleteTarget();
       }
     }
 
     Future<void> onDone() async {
       try {
-        await _closeAndDelete();
+        await ioSink.flush();
+        await ioSink.close();
+        target.renameSync(path);
         completer.complete();
       } catch (error, stackTrace) {
+        deleteTarget();
         completer.completeError(error, stackTrace);
       }
     }
