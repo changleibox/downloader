@@ -13,6 +13,8 @@ import 'entry_stub.dart'
 // ignore: uri_does_not_exist
     if (dart.library.io) 'entry/downloader_dio_for_native.dart';
 
+const _capacity = 10;
+
 /// Created by changlei on 2021/7/30.
 ///
 /// 下载管理器专用[Dio]
@@ -20,8 +22,6 @@ class DownloaderDio with DioMixin implements Dio {
   /// 构造函数
   factory DownloaderDio([BaseOptions? options]) => createDio(options);
 }
-
-const _capacity = 10;
 
 /// 扩展dio
 /// 为了防止一次性请求太多，我们限制最多只能进行[_capacity]个请求
