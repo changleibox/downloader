@@ -30,52 +30,34 @@ abstract class DownloaderDio with DioMixin implements Dio {
   /// 获取stream
   Future<void> asStream(
     final String path, {
-    final ProgressCallback? onReceiveProgress,
-    final FutureOrValueChanged<void, Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final VoidCallback? onDone,
     final Function? onError,
     final bool? cancelOnError,
     final CancelToken? cancelToken,
-    final Map<String, dynamic>? queryParameters,
-    final String lengthHeader = Headers.contentLengthHeader,
-    final dynamic data,
-    final Options? options,
+    final DownloadOptions? options,
   });
 
   /// 获取bytes
   Future<Uint8List?> asBytes(
     final String path, {
-    final ProgressCallback? onReceiveProgress,
-    final FutureOrValueChanged<void, Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final CancelToken? cancelToken,
-    final Map<String, dynamic>? queryParameters,
-    final String lengthHeader = Headers.contentLengthHeader,
-    final dynamic data,
-    final Options? options,
+    final DownloadOptions? options,
   });
 
   /// 获取文件长度
   Future<int> contentLength(
     final String path, {
     final CancelToken? cancelToken,
-    final FutureOrValueChanged<void, Headers>? onHeaders,
-    final Map<String, dynamic>? queryParameters,
-    final String lengthHeader = Headers.contentLengthHeader,
-    final dynamic data,
-    final Options? options,
+    final DownloadOptions? options,
   });
 
   /// 批量获取[paths]对应的文件大小总合
   Future<int> contentLengths(
     final Iterable<String> paths, {
     final CancelToken? cancelToken,
-    final FutureOrValueChanged<void, Headers>? onHeaders,
-    final Map<String, dynamic>? queryParameters,
-    final String lengthHeader = Headers.contentLengthHeader,
-    final dynamic data,
-    final Options? options,
+    final DownloadOptions? options,
   });
 }
 
@@ -116,39 +98,34 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   @override
   Future<void> asStream(
     final String path, {
-    final ProgressCallback? onReceiveProgress,
-    final FutureOrValueChanged<void, Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final VoidCallback? onDone,
     final Function? onError,
     final bool? cancelOnError,
     final CancelToken? cancelToken,
-    final Map<String, dynamic>? queryParameters,
-    final String lengthHeader = Headers.contentLengthHeader,
-    final dynamic data,
-    final Options? options,
+    final DownloadOptions? options,
   }) async {
-    final mergedOptions = options ?? Options();
+    final mergedOptions = options?.options ?? Options();
     mergedOptions.responseType = ResponseType.stream;
     final response = await request<ResponseBody>(
       path,
       cancelToken: cancelToken,
-      queryParameters: queryParameters,
+      queryParameters: options?.queryParameters,
       options: mergedOptions,
-      data: data,
+      data: options?.data,
     );
     final responseBody = response.data;
     if (responseBody == null) {
       return null;
     }
-    final headers = await _parseHeaders(response, onHeaders);
-    final total = _parseLength(headers, lengthHeader);
+    final headers = await _parseHeaders(response, options?.onHeaders);
+    final total = _parseLength(headers, options?.lengthHeader);
     final completer = Completer<void>();
     var received = 0;
     responseBody.stream.listen(
       (event) {
         received += event.length;
-        onReceiveProgress?.call(received, total);
+        options?.onReceiveProgress?.call(received, total);
         onData?.call(event);
       },
       onDone: () {
@@ -167,26 +144,16 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   @override
   Future<Uint8List?> asBytes(
     final String path, {
-    final ProgressCallback? onReceiveProgress,
-    final FutureOrValueChanged<void, Headers>? onHeaders,
     final ValueChanged<Uint8List>? onData,
     final CancelToken? cancelToken,
-    final Map<String, dynamic>? queryParameters,
-    final String lengthHeader = Headers.contentLengthHeader,
-    final dynamic data,
-    final Options? options,
+    final DownloadOptions? options,
   }) {
     final completer = Completer<Uint8List>();
     final data = <int>[];
     asStream(
       path,
-      onReceiveProgress: onReceiveProgress,
-      onHeaders: onHeaders,
       cancelToken: cancelToken,
-      queryParameters: queryParameters,
-      lengthHeader: lengthHeader,
       options: options,
-      data: data,
       onData: (value) {
         data.addAll(value);
         onData?.call(value);
@@ -206,36 +173,28 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   Future<int> contentLength(
     final String path, {
     final CancelToken? cancelToken,
-    final FutureOrValueChanged<void, Headers>? onHeaders,
-    final Map<String, dynamic>? queryParameters,
-    final String lengthHeader = Headers.contentLengthHeader,
-    final dynamic data,
-    final Options? options,
+    final DownloadOptions? options,
   }) async {
     final response = await head<void>(
       path,
       cancelToken: cancelToken,
-      queryParameters: queryParameters,
-      options: options,
-      data: data,
+      queryParameters: options?.queryParameters,
+      options: options?.options,
+      data: options?.data,
     );
     final headers = await _parseHeaders(
       response,
-      onHeaders,
+      options?.onHeaders,
       Headers.contentLengthHeader,
     );
-    return _parseLength(headers, lengthHeader);
+    return _parseLength(headers, options?.lengthHeader);
   }
 
   @override
   Future<int> contentLengths(
     final Iterable<String> paths, {
     final CancelToken? cancelToken,
-    final ValueChanged<Headers>? onHeaders,
-    final Map<String, dynamic>? queryParameters,
-    final String lengthHeader = Headers.contentLengthHeader,
-    final dynamic data,
-    final Options? options,
+    final DownloadOptions? options,
   }) async {
     if (paths.isEmpty) {
       return 0;
@@ -244,11 +203,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
       return contentLength(
         e,
         cancelToken: cancelToken,
-        onHeaders: onHeaders,
-        queryParameters: queryParameters,
-        lengthHeader: lengthHeader,
         options: options,
-        data: data,
       );
     }));
     return lengths.reduce((value, element) => value + element);
@@ -256,8 +211,9 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
 
   int _parseLength(
     final Headers headers, [
-    final String lengthHeader = Headers.contentLengthHeader,
+    String? lengthHeader,
   ]) {
+    lengthHeader ??= Headers.contentLengthHeader;
     var compressed = false;
     final contentEncoding = headers.value(Headers.contentEncodingHeader);
     if (contentEncoding != null) {
@@ -298,4 +254,64 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
 extension HeadersBehavior on Headers {
   /// 是否正在请求contentLength
   bool get isContentLength => value('behavior') == Headers.contentLengthHeader;
+}
+
+/// 配置
+class DownloadOptions {
+  /// 构造函数
+  const DownloadOptions({
+    this.onReceiveProgress,
+    this.onHeaders,
+    this.queryParameters,
+    this.lengthHeader = Headers.contentLengthHeader,
+    this.data,
+    this.options,
+  });
+
+  /// 监听进度
+  final ProgressCallback? onReceiveProgress;
+
+  /// 在返回headers的时候回调
+  final FutureOrValueChanged<void, Headers>? onHeaders;
+
+  /// 请求参数
+  final Map<String, dynamic>? queryParameters;
+
+  /// contentLength的key
+  final String lengthHeader;
+
+  /// 请求实体
+  final Object? data;
+
+  /// [Options]
+  final Options? options;
+
+  /// 复制
+  DownloadOptions copyWith({
+    final ProgressCallback? onReceiveProgress,
+    final FutureOrValueChanged<void, Headers>? onHeaders,
+    final Map<String, dynamic>? queryParameters,
+    final String? lengthHeader,
+    final Object? data,
+    final Options? options,
+  }) {
+    return DownloadOptions(
+      onReceiveProgress: onReceiveProgress ?? this.onReceiveProgress,
+      onHeaders: onHeaders ?? this.onHeaders,
+      queryParameters: queryParameters ?? this.queryParameters,
+      lengthHeader: lengthHeader ?? this.lengthHeader,
+      data: data ?? this.data,
+      options: options ?? this.options,
+    );
+  }
+
+  /// 只有请求参数的[DownloadOptions]
+  DownloadOptions get barePole {
+    return DownloadOptions(
+      queryParameters: queryParameters,
+      lengthHeader: lengthHeader,
+      data: data,
+      options: options,
+    );
+  }
 }

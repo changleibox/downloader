@@ -5,7 +5,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:downloader/src/dio/downloader_dio.dart';
 import 'package:downloader/src/dio/request.dart';
 import 'package:downloader/src/downloader.dart';
@@ -19,50 +18,46 @@ class M3u8Downloader extends Downloader {
   /// 构造函数
   M3u8Downloader({
     required String url,
-    ProgressCallback? onReceiveProgress,
-    FutureOrValueChanged<void, Headers>? onHeaders,
-    Map<String, dynamic>? queryParameters,
-    String lengthHeader = Headers.contentLengthHeader,
-    dynamic data,
-    Options? options,
-  }) : super(
-          url: url,
-          onReceiveProgress: onReceiveProgress,
-          onHeaders: onHeaders,
-          queryParameters: queryParameters,
-          lengthHeader: lengthHeader,
-          data: data,
-          options: options,
-        );
+    DownloadOptions? options,
+  }) : super(url: url, options: options);
 
   @override
   Future<void> onDownload(String url, ValueChanged<Uint8List> onData) async {
-    var m3u8 = await M3u8.parse(url, cancelToken);
+    final barePoleOptions = options?.barePole;
+    var m3u8 = await M3u8.parse(
+      url,
+      cancelToken: cancelToken,
+      options: barePoleOptions,
+    );
     final streamInf = m3u8?.streamInf;
     if (streamInf?.isNotEmpty == true) {
-      m3u8 = await M3u8.parse(streamInf!.first.uri, cancelToken);
+      m3u8 = await M3u8.parse(
+        streamInf!.first.uri,
+        cancelToken: cancelToken,
+        options: barePoleOptions,
+      );
     }
     if (m3u8 == null) {
       return null;
     }
 
-    final key = m3u8.key;
-    final keyData = await key?.keyData(cancelToken);
+    final extKey = m3u8.key;
+    final key = await extKey?.asKeyData(
+      cancelToken: cancelToken,
+      options: barePoleOptions,
+    );
 
     // 下载ts文件列表
     final playlist = [...?m3u8.playlist];
 
     var total = 0;
     var received = 0;
+    final onReceiveProgress = options?.onReceiveProgress;
     if (onReceiveProgress != null) {
       total = await dio.contentLengths(
         playlist.map((e) => e.uri),
         cancelToken: cancelToken,
-        onHeaders: onHeaders,
-        queryParameters: queryParameters,
-        lengthHeader: lengthHeader,
-        options: options,
-        data: data,
+        options: barePoleOptions,
       );
     }
     if (total != 0) {
@@ -76,11 +71,7 @@ class M3u8Downloader extends Downloader {
       final bytes = await dio.asBytes(
         value.uri,
         cancelToken: cancelToken,
-        onHeaders: onHeaders,
-        queryParameters: queryParameters,
-        lengthHeader: lengthHeader,
         options: options,
-        data: data,
         onData: (value) {
           received += value.length;
           onReceiveProgress?.call(received, total);
@@ -89,7 +80,7 @@ class M3u8Downloader extends Downloader {
       if (bytes == null) {
         continue;
       }
-      onData(decrypt(bytes, keyData, key?.iv));
+      onData(decrypt(bytes, key, extKey?.iv));
     }
   }
 }

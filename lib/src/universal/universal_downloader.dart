@@ -4,7 +4,6 @@
 
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
 import 'package:downloader/src/dio/downloader_dio.dart';
 import 'package:downloader/src/dio/request.dart';
@@ -18,21 +17,8 @@ class UniversalDownloader extends Downloader {
   /// 构造函数
   UniversalDownloader({
     required String url,
-    ProgressCallback? onReceiveProgress,
-    FutureOrValueChanged<void, Headers>? onHeaders,
-    Map<String, dynamic>? queryParameters,
-    String lengthHeader = Headers.contentLengthHeader,
-    dynamic data,
-    Options? options,
-  }) : super(
-          url: url,
-          onReceiveProgress: onReceiveProgress,
-          onHeaders: onHeaders,
-          queryParameters: queryParameters,
-          lengthHeader: lengthHeader,
-          data: data,
-          options: options,
-        );
+    DownloadOptions? options,
+  }) : super(url: url, options: options);
 
   @override
   Future<void> onDownload(String url, ValueChanged<Uint8List> onData) async {
@@ -41,12 +27,7 @@ class UniversalDownloader extends Downloader {
       onData: onData,
       cancelOnError: true,
       cancelToken: cancelToken,
-      onReceiveProgress: onReceiveProgress,
-      onHeaders: onHeaders,
-      queryParameters: queryParameters,
-      lengthHeader: lengthHeader,
       options: options,
-      data: data,
     );
   }
 }

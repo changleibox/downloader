@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
+import 'package:downloader/downloader.dart';
 import 'package:downloader/src/dio/request.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:path/path.dart' as path;
@@ -129,8 +130,16 @@ class M3u8 {
   final ExtStart? start;
 
   /// 加载M3U8格式文件
-  static Future<M3u8?> parse(String url, [CancelToken? cancelToken]) async {
-    final data = await dio.asBytes(url, cancelToken: cancelToken);
+  static Future<M3u8?> parse(
+    String url, {
+    CancelToken? cancelToken,
+    DownloadOptions? options,
+  }) async {
+    final data = await dio.asBytes(
+      url,
+      cancelToken: cancelToken,
+      options: options,
+    );
     if (data == null) {
       return null;
     }
@@ -464,11 +473,18 @@ class ExtKey {
   }
 
   /// 获取key的内容
-  Future<Uint8List?> keyData([CancelToken? cancelToken]) async {
+  Future<Uint8List?> asKeyData({
+    CancelToken? cancelToken,
+    DownloadOptions? options,
+  }) async {
     if (method == KeyMethod.none) {
       return null;
     }
-    return dio.asBytes(uri, cancelToken: cancelToken);
+    return dio.asBytes(
+      uri,
+      cancelToken: cancelToken,
+      options: options,
+    );
   }
 
   /// 指定密钥路径。

@@ -16,12 +16,7 @@ import 'package:flutter/cupertino.dart';
 /// 构建Downloader
 typedef DownloaderBuilder = Downloader Function(
   String url,
-  ProgressCallback? onReceiveProgress,
-  FutureOrValueChanged<void, Headers>? onHeaders,
-  Map<String, dynamic>? queryParameters,
-  String lengthHeader,
-  Object? data,
-  Options? options,
+  DownloadOptions? options,
 );
 
 const _allMatchRegExp = r'.*?';
@@ -34,11 +29,6 @@ abstract class Downloader {
   @protected
   Downloader({
     required this.url,
-    this.onReceiveProgress,
-    this.onHeaders,
-    this.queryParameters,
-    this.lengthHeader = Headers.contentLengthHeader,
-    this.data,
     this.options,
   })  : _cancelToken = CancelToken(),
         _controller = StreamController<Uint8List>() {
@@ -55,12 +45,7 @@ abstract class Downloader {
   /// 构造函数，按照文件类型选择合适的下载器
   factory Downloader.extension({
     required String url,
-    ProgressCallback? onReceiveProgress,
-    FutureOrValueChanged<void, Headers>? onHeaders,
-    Map<String, dynamic>? queryParameters,
-    String lengthHeader = Headers.contentLengthHeader,
-    dynamic data,
-    Options? options,
+    DownloadOptions? options,
   }) {
     final pointIndex = url.lastIndexOf('.');
     var extension = _allMatchRegExp;
@@ -71,24 +56,11 @@ abstract class Downloader {
     for (var key in keys) {
       final regExp = RegExp('\.$key\$', caseSensitive: false);
       if (regExp.hasMatch(extension)) {
-        return _downloaderBuilders[key]!(
-          url,
-          onReceiveProgress,
-          onHeaders,
-          queryParameters,
-          lengthHeader,
-          data,
-          options,
-        );
+        return _downloaderBuilders[key]!(url, options);
       }
     }
     return UniversalDownloader(
       url: url,
-      onReceiveProgress: onReceiveProgress,
-      onHeaders: onHeaders,
-      queryParameters: queryParameters,
-      lengthHeader: lengthHeader,
-      data: data,
       options: options,
     );
   }
@@ -96,20 +68,10 @@ abstract class Downloader {
   /// 使用[Stream]下载
   static Stream<Uint8List> asStream(
     String url, {
-    ProgressCallback? onReceiveProgress,
-    FutureOrValueChanged<void, Headers>? onHeaders,
-    Map<String, dynamic>? queryParameters,
-    String lengthHeader = Headers.contentLengthHeader,
-    dynamic data,
-    Options? options,
+    DownloadOptions? options,
   }) {
     final downloader = Downloader.extension(
       url: url,
-      onReceiveProgress: onReceiveProgress,
-      onHeaders: onHeaders,
-      queryParameters: queryParameters,
-      lengthHeader: lengthHeader,
-      data: data,
       options: options,
     );
     downloader.download(url);
@@ -120,12 +82,7 @@ abstract class Downloader {
   static Future<Uint8List> asBytes(
     String url, {
     CancelToken? cancelToken,
-    ProgressCallback? onReceiveProgress,
-    FutureOrValueChanged<void, Headers>? onHeaders,
-    Map<String, dynamic>? queryParameters,
-    String lengthHeader = Headers.contentLengthHeader,
-    dynamic data,
-    Options? options,
+    DownloadOptions? options,
   }) {
     final bytes = <int>[];
     final completer = Completer<Uint8List>();
@@ -142,11 +99,6 @@ abstract class Downloader {
 
     final subscription = asStream(
       url,
-      onReceiveProgress: onReceiveProgress,
-      onHeaders: onHeaders,
-      queryParameters: queryParameters,
-      lengthHeader: lengthHeader,
-      data: data,
       options: options,
     ).listen(
       bytes.addAll,
@@ -169,13 +121,8 @@ abstract class Downloader {
     String url,
     dynamic savePath, {
     CancelToken? cancelToken,
-    ProgressCallback? onReceiveProgress,
-    FutureOrValueChanged<void, Headers>? onHeaders,
+    DownloadOptions? options,
     bool deleteOnError = true,
-    Map<String, dynamic>? queryParameters,
-    String lengthHeader = Headers.contentLengthHeader,
-    dynamic data,
-    Options? options,
   }) {
     assert(
       savePath is String || savePath is FutureOrValueChanged<String, Headers>,
@@ -213,7 +160,7 @@ abstract class Downloader {
     }
 
     Future<void> handleHeaders(Headers headers) async {
-      onHeaders?.call(headers);
+      options?.onHeaders?.call(headers);
       if (headers.isContentLength) {
         return;
       }
@@ -254,14 +201,12 @@ abstract class Downloader {
       }
     }
 
+    options ??= const DownloadOptions();
     final subscription = asStream(
       url,
-      onReceiveProgress: onReceiveProgress,
-      onHeaders: handleHeaders,
-      queryParameters: queryParameters,
-      lengthHeader: lengthHeader,
-      data: data,
-      options: options,
+      options: options.copyWith(
+        onHeaders: handleHeaders,
+      ),
     ).listen(
       (event) => ioSink?.add(event),
       onDone: onDone,
@@ -294,22 +239,9 @@ abstract class Downloader {
   }
 
   static final _downloaderBuilders = <String, DownloaderBuilder>{
-    'm3u8': (
-      url,
-      onReceiveProgress,
-      onHeaders,
-      queryParameters,
-      lengthHeader,
-      data,
-      options,
-    ) {
+    'm3u8': (url, options) {
       return M3u8Downloader(
         url: url,
-        onReceiveProgress: onReceiveProgress,
-        onHeaders: onHeaders,
-        queryParameters: queryParameters,
-        lengthHeader: lengthHeader,
-        data: data,
         options: options,
       );
     },
@@ -318,23 +250,8 @@ abstract class Downloader {
   /// url
   final String url;
 
-  /// 监听进度
-  final ProgressCallback? onReceiveProgress;
-
-  /// 在返回headers的时候回调
-  final FutureOrValueChanged<void, Headers>? onHeaders;
-
-  /// 请求参数
-  final Map<String, dynamic>? queryParameters;
-
-  /// contentLength的key
-  final String lengthHeader;
-
-  /// 请求实体
-  final Object? data;
-
-  /// [Options]
-  final Options? options;
+  /// 下载配置
+  final DownloadOptions? options;
 
   final CancelToken _cancelToken;
 
