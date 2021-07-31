@@ -72,10 +72,9 @@ abstract class Downloader {
     ProgressCallback? onReceiveProgress,
     FutureOrValueChanged<void, Headers>? onHeaders,
   }) {
-    final realOptions = options ?? const DownloadOptions();
     final downloader = Downloader.extension(
       url: url,
-      options: realOptions.copyWith(
+      options: (options ?? const DownloadOptions()).copyWith(
         onReceiveProgress: onReceiveProgress,
         onHeaders: onHeaders,
       ),
