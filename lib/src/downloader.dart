@@ -112,16 +112,12 @@ abstract class Downloader {
   /// 使用[File]下载
   static Future<void> asFile(
     String url,
-    String path, {
+    String savePath, {
     CancelToken? cancelToken,
     ProgressCallback? onReceiveProgress,
     bool deleteOnError = true,
   }) {
-    final completer = Completer<void>();
-    final target = File('$path.tmp');
-    if (target.existsSync()) {
-      target.deleteSync(recursive: true);
-    }
+    final target = File(savePath);
     target.createSync(recursive: true);
     final ioSink = target.openWrite();
     void deleteTarget() {
@@ -144,11 +140,12 @@ abstract class Downloader {
       }
     }
 
+    final completer = Completer<void>();
     Future<void> onDone() async {
       try {
         await ioSink.flush();
         await ioSink.close();
-        target.renameSync(path);
+        target.renameSync(savePath);
         completer.complete();
       } catch (error, stackTrace) {
         deleteTarget();
