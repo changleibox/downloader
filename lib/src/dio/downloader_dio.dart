@@ -73,17 +73,15 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   @override
   Future<Response<T>> fetch<T>(RequestOptions requestOptions) {
     final completer = Completer<Response<T>>();
-    void next() {
-      _ongoingQueue.removeFirst();
-      if (_waitingQueue.isNotEmpty) {
-        _ongoingQueue.add(_waitingQueue.removeFirst()..call());
-      }
-    }
-
     void execute() {
       final then = completer.complete;
       final Function onError = completer.completeError;
-      super.fetch<T>(requestOptions).then(then).catchError(onError).whenComplete(next);
+      super.fetch<T>(requestOptions).then(then).catchError(onError).whenComplete(() {
+        _ongoingQueue.remove(execute);
+        if (_waitingQueue.isNotEmpty) {
+          _ongoingQueue.add(_waitingQueue.removeFirst()..call());
+        }
+      });
     }
 
     // 当正在进行的请求达到上限，则把新进来的请求放在等待队列中，等待进行中队列请求完成
