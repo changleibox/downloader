@@ -41,7 +41,7 @@ class M3u8Downloader extends Downloader {
     var total = 0;
     var received = 0;
     if (onReceiveProgress != null) {
-      total = await plainRequest.getContentLengths(
+      total = await plainRequest.contentLengths(
         playlist.map((e) => e.uri),
         cancelToken: cancelToken,
       );

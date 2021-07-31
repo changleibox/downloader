@@ -33,13 +33,13 @@ abstract class DownloaderDio with DioMixin implements Dio {
   });
 
   /// 获取文件长度
-  Future<int> getContentLength(
+  Future<int> contentLength(
     final String path, [
     final CancelToken? cancelToken,
   ]);
 
   /// 批量获取[paths]对应的文件大小总合
-  Future<int> getContentLengths(
+  Future<int> contentLengths(
     final Iterable<String> paths, {
     final String lengthHeader = Headers.contentLengthHeader,
     final CancelToken? cancelToken,
@@ -121,7 +121,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   }
 
   @override
-  Future<int> getContentLength(
+  Future<int> contentLength(
     final String path, [
     final CancelToken? cancelToken,
   ]) async {
@@ -133,7 +133,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   }
 
   @override
-  Future<int> getContentLengths(
+  Future<int> contentLengths(
     final Iterable<String> paths, {
     final String lengthHeader = Headers.contentLengthHeader,
     final CancelToken? cancelToken,
@@ -142,7 +142,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
       return 0;
     }
     final lengths = await Future.wait(paths.map((e) {
-      return getContentLength(e, cancelToken);
+      return contentLength(e, cancelToken);
     }));
     return lengths.reduce((value, element) => value + element);
   }
