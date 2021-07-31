@@ -10,7 +10,7 @@ const _timeout = Duration(hours: 24);
 /// Created by changlei on 2021/7/28.
 ///
 /// 网络请求
-final plainRequest = DownloaderDio(
+final dio = DownloaderDio(
   BaseOptions(
     connectTimeout: _timeout.inMilliseconds,
     sendTimeout: _timeout.inMilliseconds,
@@ -22,4 +22,4 @@ final plainRequest = DownloaderDio(
 );
 
 /// 可以给下载管理器设置过滤器
-Interceptors get interceptors => plainRequest.interceptors;
+Interceptors get interceptors => dio.interceptors;

@@ -41,7 +41,7 @@ class M3u8Downloader extends Downloader {
     var total = 0;
     var received = 0;
     if (onReceiveProgress != null) {
-      total = await plainRequest.contentLengths(
+      total = await dio.contentLengths(
         playlist.map((e) => e.uri),
         cancelToken: cancelToken,
       );
@@ -51,7 +51,7 @@ class M3u8Downloader extends Downloader {
       if (isCancelled) {
         break;
       }
-      final data = await plainRequest.getBytes(
+      final data = await dio.asBytes(
         value.uri,
         cancelToken: cancelToken,
         onReceive: (value) {

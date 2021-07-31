@@ -25,7 +25,7 @@ abstract class DownloaderDio with DioMixin implements Dio {
   factory DownloaderDio([BaseOptions? options]) => createDio(options);
 
   /// 获取bytes
-  Future<Uint8List?> getBytes(
+  Future<Uint8List?> asBytes(
     final String path, {
     final ProgressCallback? onReceiveProgress,
     final ValueChanged<Uint8List>? onReceive,
@@ -81,7 +81,7 @@ mixin DownloaderDioMixin on DioMixin implements DownloaderDio {
   }
 
   @override
-  Future<Uint8List?> getBytes(
+  Future<Uint8List?> asBytes(
     final String path, {
     final ProgressCallback? onReceiveProgress,
     final ValueChanged<Uint8List>? onReceive,

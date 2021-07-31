@@ -129,7 +129,7 @@ class M3u8 {
 
   /// 加载M3U8格式文件
   static Future<M3u8?> parse(String url) async {
-    final data = await plainRequest.getBytes(url);
+    final data = await dio.asBytes(url);
     if (data == null) {
       return null;
     }
@@ -464,7 +464,7 @@ class ExtKey {
 
   /// 获取key的内容
   Future<Uint8List?> get keyData async {
-    return method == KeyMethod.none ? null : plainRequest.getBytes(uri);
+    return method == KeyMethod.none ? null : dio.asBytes(uri);
   }
 
   /// 指定密钥路径。
