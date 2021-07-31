@@ -213,9 +213,9 @@ abstract class Downloader {
       if (target?.existsSync() == true) {
         target = target!.renameSync(newPath);
       } else {
-        target = File(newPath)..createSync(recursive: true);
+        target = File(newPath);
       }
-      ioSink ??= target!.openWrite();
+      ioSink ??= target!.openWrite(mode: FileMode.writeOnly);
     }
 
     Future<void> handleHeaders(Headers headers) async {
