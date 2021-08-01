@@ -16,9 +16,25 @@ import 'entry_stub.dart'
     if (dart.library.io) 'entry/downloader_dio_for_native.dart';
 
 const _capacity = 10;
+const _timeout = Duration(hours: 24);
 
 /// 返回[FutureOr]的[ValueChanged]
 typedef FutureOrValueChanged<R, T> = FutureOr<R> Function(T value);
+
+/// 下载管理器专用[Dio]
+final dio = DownloaderDio(
+  BaseOptions(
+    connectTimeout: _timeout.inMilliseconds,
+    sendTimeout: _timeout.inMilliseconds,
+    receiveTimeout: _timeout.inMilliseconds,
+    followRedirects: true,
+    maxRedirects: 10,
+    receiveDataWhenStatusError: true,
+  ),
+);
+
+/// 可以给下载管理器设置过滤器
+Interceptors get downloadInterceptors => dio.interceptors;
 
 /// Created by changlei on 2021/7/30.
 ///

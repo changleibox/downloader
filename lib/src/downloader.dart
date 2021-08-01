@@ -9,7 +9,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
 import 'package:downloader/src/dio/downloader_dio.dart';
-import 'package:downloader/src/dio/request.dart' as request;
 import 'package:downloader/src/universal/universal_downloader.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -259,7 +258,7 @@ abstract class Downloader {
   }
 
   /// 可以给下载管理器设置过滤器
-  static Interceptors get interceptors => request.interceptors;
+  static Interceptors get interceptors => downloadInterceptors;
 
   /// 加载下载管理器，按照后缀名
   /// 注意，如果传入的[extensions]已经存在，则会替换原来的[downloader]

@@ -6,7 +6,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:downloader/src/dio/downloader_dio.dart';
-import 'package:downloader/src/dio/request.dart';
 import 'package:downloader/src/downloader.dart';
 import 'package:downloader/src/m3u8/m3u8.dart';
 import 'package:flutter/foundation.dart';
