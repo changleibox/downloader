@@ -128,12 +128,16 @@ abstract class Downloader {
     Future<void> onDone() async {
       final data = Uint8List.fromList(bytes);
       bytes.clear();
-      completer.complete(data);
+      if (!completer.isCompleted) {
+        completer.complete(data);
+      }
     }
 
     Future<void> onError(Object error, [StackTrace? stackTrace]) async {
       bytes.clear();
-      completer.completeError(error, stackTrace);
+      if (!completer.isCompleted) {
+        completer.completeError(error, stackTrace);
+      }
     }
 
     asSubscribe(
@@ -229,10 +233,14 @@ abstract class Downloader {
     Future<void> onDone() async {
       try {
         await closeIOSink();
-        completer.complete();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
       } catch (error, stackTrace) {
         deleteTarget();
-        completer.completeError(error, stackTrace);
+        if (!completer.isCompleted) {
+          completer.completeError(error, stackTrace);
+        }
       }
     }
 
@@ -240,7 +248,9 @@ abstract class Downloader {
       try {
         await closeAndDelete();
       } finally {
-        completer.completeError(error, stackTrace);
+        if (!completer.isCompleted) {
+          completer.completeError(error, stackTrace);
+        }
       }
     }
 
