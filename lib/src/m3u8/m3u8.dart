@@ -7,7 +7,6 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
-import 'package:downloader/downloader.dart';
 import 'package:downloader/src/dio/downloader_dio.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:path/path.dart' as path;
@@ -634,7 +633,7 @@ class ExtDateRange {
   }
 
   /// 双引号包裹的唯一指明日期范围的标识。
-  // 该属性为必选参数。
+  /// 该属性为必选参数。
   final String id;
 
   /// 双引号包裹的由客户定义的一系列属性与与之对应的语意值。

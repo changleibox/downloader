@@ -9,7 +9,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:downloader/downloader.dart';
 import 'package:downloader/src/dio/downloader_dio.dart';
-import 'package:downloader/src/universal/universal_downloader.dart';
 import 'package:flutter/cupertino.dart';
 
 /// 构建Downloader
